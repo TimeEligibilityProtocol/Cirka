@@ -1,0 +1,31 @@
+{
+  "name": "@wearto-you/marketplace",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "web": "expo start --web",
+    "build:web": "expo export --platform web",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@wearto-you/api-client": "*",
+    "@wearto-you/domain": "*",
+    "@wearto-you/platform": "*",
+    "@wearto-you/ui": "*",
+    "@expo/metro-runtime": "~3.2.3",
+    "expo": "~51.0.28",
+    "expo-status-bar": "~1.12.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-native": "0.74.5",
+    "react-native-web": "~0.19.12"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@types/react": "~18.2.79",
+    "babel-preset-expo": "~11.0.0",
+    "typescript": "^5.5.4"
+  }
+}

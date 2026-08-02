@@ -1,0 +1,24 @@
+node_modules/
+dist/
+build/
+coverage/
+
+# Expo
+.expo/
+.expo-shared/
+web-build/
+
+# Env files — never commit real secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# OS / editor
+.DS_Store
+*.log
+.vscode/
+.idea/
+
+# TypeScript build info
+*.tsbuildinfo

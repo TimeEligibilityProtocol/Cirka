@@ -1,0 +1,31 @@
+{
+  "name": "wearto-you-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "wearto.you — C2C fashion resale marketplace (Dubai/UAE). Standalone monorepo, isolated from TEP/Quantum/wayto.you core.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:packages": "npm run build --if-present --workspace packages/domain --workspace packages/ui --workspace packages/platform --workspace packages/api-client --workspace packages/integrations",
+    "build:apps": "npm run build --if-present --workspace apps/api --workspace apps/admin",
+    "build": "npm run build:packages && npm run build:apps",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run build:packages && npm run typecheck --workspaces --if-present",
+    "web:marketplace": "npm run web --workspace apps/marketplace",
+    "dev:admin": "npm run dev --workspace apps/admin",
+    "dev:api": "npm run dev --workspace apps/api"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  }
+}
