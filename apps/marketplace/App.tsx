@@ -1,34 +1,78 @@
 import { colors, spacing, typography } from "@wearto-you/ui";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { ComponentType } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StackProvider, useStack } from "./src/nav/stack";
+import { AddListingScreen } from "./src/screens/AddListingScreen";
+import { CheckoutScreen } from "./src/screens/CheckoutScreen";
+import { ClaimDetailScreen } from "./src/screens/ClaimDetailScreen";
+import { DiscoverScreen } from "./src/screens/DiscoverScreen";
+import { OrderStatusScreen } from "./src/screens/OrderStatusScreen";
+import { PayoutClaimScreen } from "./src/screens/PayoutClaimScreen";
 import { PlaceholderScreen } from "./src/screens/PlaceholderScreen";
+import { ProductDetailScreen } from "./src/screens/ProductDetailScreen";
+import { ProfileScreen } from "./src/screens/ProfileScreen";
+import { QRHandoffScreen } from "./src/screens/QRHandoffScreen";
+import { StoreProvider } from "./src/state/store";
+
+function SavedScreen() {
+  return <PlaceholderScreen title="Saved" note="Favorited products land here." />;
+}
+function MessagesScreen() {
+  return <PlaceholderScreen title="Messages" note="Buyer ↔ seller conversations land here." />;
+}
+
+const SCREENS: Record<string, ComponentType> = {
+  Discover: DiscoverScreen,
+  ProductDetail: ProductDetailScreen,
+  Checkout: CheckoutScreen,
+  OrderStatus: OrderStatusScreen,
+  QRHandoff: QRHandoffScreen,
+  PayoutClaim: PayoutClaimScreen,
+  ClaimDetail: ClaimDetailScreen,
+  AddListing: AddListingScreen,
+  Saved: SavedScreen,
+  Messages: MessagesScreen,
+  Profile: ProfileScreen,
+};
+
+const SCREEN_TAB: Record<string, string> = {
+  Discover: "discover",
+  ProductDetail: "discover",
+  Checkout: "discover",
+  OrderStatus: "discover",
+  QRHandoff: "discover",
+  PayoutClaim: "discover",
+  ClaimDetail: "discover",
+  AddListing: "add",
+  Saved: "saved",
+  Messages: "messages",
+  Profile: "profile",
+};
 
 const TABS = [
-  { key: "discover", label: "Discover", note: "Product feed. Lands in the next step." },
-  { key: "saved", label: "Saved", note: "Favorited products." },
-  { key: "add", label: "Add", note: "Magic Listing — start selling an item." },
-  { key: "messages", label: "Messages", note: "Buyer ↔ seller conversations." },
-  { key: "profile", label: "Profile", note: "Account, orders, sales, fit profile." },
+  { key: "discover", label: "Discover", root: "Discover" },
+  { key: "saved", label: "Saved", root: "Saved" },
+  { key: "add", label: "Add", root: "AddListing" },
+  { key: "messages", label: "Messages", root: "Messages" },
+  { key: "profile", label: "Profile", root: "Profile" },
 ] as const;
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]["key"]>("discover");
-  const active = TABS.find((t) => t.key === activeTab)!;
+function AppShell() {
+  const { current, reset } = useStack();
+  const Screen = SCREENS[current.name] ?? DiscoverScreen;
+  const activeTab = SCREEN_TAB[current.name] ?? "discover";
 
   return (
     <View style={styles.safeArea}>
       <StatusBar style="dark" />
-      <PlaceholderScreen title={active.label} note={active.note} />
+      <View style={styles.screenArea}>
+        <Screen />
+      </View>
       <View style={styles.bottomNav}>
         {TABS.map((tab) => (
-          <Pressable key={tab.key} onPress={() => setActiveTab(tab.key)} style={styles.tabButton}>
-            <Text
-              style={[
-                styles.tabLabel,
-                tab.key === activeTab ? styles.tabLabelActive : undefined,
-              ]}
-            >
+          <Pressable key={tab.key} onPress={() => reset(tab.root)} style={styles.tabButton}>
+            <Text style={[styles.tabLabel, tab.key === activeTab ? styles.tabLabelActive : undefined]}>
               {tab.label}
             </Text>
           </Pressable>
@@ -38,10 +82,23 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <StoreProvider>
+      <StackProvider initial="Discover">
+        <AppShell />
+      </StackProvider>
+    </StoreProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  screenArea: {
+    flex: 1,
   },
   bottomNav: {
     flexDirection: "row",
