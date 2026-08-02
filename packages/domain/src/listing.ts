@@ -9,8 +9,6 @@ export type ListingStatus =
   | "hidden"
   | "removed";
 
-export type ListingCategory = "clothing" | "shoes" | "bags" | "jewelry_accessories";
-
 export type LabelStatus = "missing" | "cut_off" | "unreadable" | "available";
 
 /** Every field an AI can suggest keeps the suggestion and the seller's decision separate. */
@@ -24,7 +22,8 @@ export interface Listing {
   id: string;
   sellerId: string;
   tenantId: string;
-  category: ListingCategory;
+  /** The most specific subcategory id from the category tree, e.g. "clothing-dresses" — never a bare text label. See category.ts. */
+  categoryId: string;
   status: ListingStatus;
   title: AiAssistedField<string>;
   description: AiAssistedField<string>;

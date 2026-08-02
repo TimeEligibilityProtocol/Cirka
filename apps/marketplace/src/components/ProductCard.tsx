@@ -1,6 +1,5 @@
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { PlaceholderTile } from "./PlaceholderTile";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { DemoListing, formatMoney } from "../data/seed";
 
 export function ProductCard({ listing, onPress }: { listing: DemoListing; onPress: () => void }) {
@@ -8,7 +7,7 @@ export function ProductCard({ listing, onPress }: { listing: DemoListing; onPres
   return (
     <Pressable onPress={onPress} style={styles.card}>
       <View style={styles.imageWrap}>
-        <PlaceholderTile seed={listing.id} label={listing.title.sellerSelectedValue ?? listing.brand2} />
+        <Image source={listing.imageSource} style={styles.image} resizeMode="cover" />
         <View style={styles.heart}>
           <Text style={styles.heartIcon}>♡</Text>
         </View>

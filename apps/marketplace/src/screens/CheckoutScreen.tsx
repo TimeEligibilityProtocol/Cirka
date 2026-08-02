@@ -1,3 +1,4 @@
+import { getCategory } from "@wearto-you/domain";
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -36,7 +37,7 @@ export function CheckoutScreen() {
       <Header title="Checkout" />
       <View style={styles.content}>
         <Text style={styles.itemTitle}>{listing.title.sellerSelectedValue}</Text>
-        <Text style={styles.itemSub}>{listing.brand2}</Text>
+        <Text style={styles.itemSub}>{getCategory(listing.categoryId)?.labelEn}</Text>
 
         <View style={styles.card}>
           <Row label="Buyer pays for item" value={formatMoney(breakdown.total)} />

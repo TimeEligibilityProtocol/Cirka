@@ -1,4 +1,6 @@
 export * from "./money.js";
+export * from "./category.js";
+export * from "./backgroundPreset.js";
 export * from "./listing.js";
 export * from "./offer.js";
 export * from "./verification.js";

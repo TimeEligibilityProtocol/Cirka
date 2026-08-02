@@ -1,8 +1,15 @@
+import {
+  BackgroundPreset,
+  DEFAULT_BACKGROUND_PRESET_ID,
+  getSubcategories,
+  ROOT_CATEGORIES,
+} from "@wearto-you/domain";
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { BACKGROUND_PRESET_OPTIONS } from "../assets/backgroundPresets";
+import { DEMO_PRODUCTS } from "../assets/demoProducts";
 import { Header } from "../components/Header";
-import { PlaceholderTile } from "../components/PlaceholderTile";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { StepperHeader } from "../components/StepperHeader";
 import { aed, approved, DemoListing, formatMoney } from "../data/seed";
@@ -11,20 +18,24 @@ import { useStore } from "../state/store";
 
 const STEPS = ["Photo", "Edit", "Details", "Review"];
 
+// The item the seller "just photographed" for this walkthrough — a real
+// approved demo photo, not a stock image. See docs/product/source-assets.
+const CAPTURED_PRODUCT = DEMO_PRODUCTS.find((p) => p.id === "demo-dress-001")!;
+
 const DETECTED = {
-  category: "Dress",
   color: "Cream",
-  material: "Linen Blend",
+  material: "Viscose blend",
   condition: "Excellent",
 };
-
-const DEMO_SEED = "new-listing";
 
 export function AddListingScreen() {
   const { reset } = useStack();
   const { addListing } = useStore();
   const [step, setStep] = useState(0);
   const [price, setPrice] = useState("450");
+  const [backgroundPresetId, setBackgroundPresetId] = useState(DEFAULT_BACKGROUND_PRESET_ID);
+  const [rootCategoryId, setRootCategoryId] = useState("clothing");
+  const [subcategoryId, setSubcategoryId] = useState("clothing-dresses");
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
@@ -35,11 +46,11 @@ export function AddListingScreen() {
       id: `l_new_${Date.now()}`,
       sellerId: "seller_demo",
       tenantId: "wearto_you",
-      category: "clothing",
+      categoryId: subcategoryId,
       status: "active",
-      title: approved("Pleated Midi Dress"),
+      title: approved(CAPTURED_PRODUCT.title),
       description: approved("Newly listed via Magic Listing — AI-assisted draft, reviewed and approved by seller."),
-      brand: approved("Reformation"),
+      brand: approved("Unbranded"),
       color: approved(DETECTED.color),
       size: approved("M"),
       material: approved(DETECTED.material),
@@ -51,8 +62,7 @@ export function AddListingScreen() {
       createdAt: new Date(0).toISOString(),
       lastConfirmedAvailableAt: new Date(0).toISOString(),
       expiresAt: null,
-      images: [DEMO_SEED],
-      brand2: "Reformation",
+      imageSource: CAPTURED_PRODUCT.source,
       conditionLabel: "Excellent — like new.",
       measurements: "64 cm (W) × 112 cm (L)",
     };
@@ -66,8 +76,17 @@ export function AddListingScreen() {
       <StepperHeader steps={STEPS} activeIndex={step} />
       <ScrollView contentContainerStyle={styles.content}>
         {step === 0 ? <PhotoStep /> : null}
-        {step === 1 ? <EditStep /> : null}
-        {step === 2 ? <DetailsStep /> : null}
+        {step === 1 ? (
+          <EditStep backgroundPresetId={backgroundPresetId} setBackgroundPresetId={setBackgroundPresetId} />
+        ) : null}
+        {step === 2 ? (
+          <DetailsStep
+            rootCategoryId={rootCategoryId}
+            setRootCategoryId={setRootCategoryId}
+            subcategoryId={subcategoryId}
+            setSubcategoryId={setSubcategoryId}
+          />
+        ) : null}
         {step === 3 ? <ReviewStep price={price} setPrice={setPrice} /> : null}
       </ScrollView>
       <View style={styles.footer}>
@@ -88,41 +107,112 @@ function PhotoStep() {
       <Text style={styles.stepHeading}>Photograph the item</Text>
       <Text style={styles.stepSub}>Front, back, fabric close-up, label — follow the category guide.</Text>
       <View style={styles.photoGrid}>
-        <PlaceholderTile seed={DEMO_SEED} label="Dress" style={styles.photoTile} />
+        <Image source={CAPTURED_PRODUCT.source} style={styles.photoTile} resizeMode="cover" />
         <View style={[styles.photoTile, styles.photoTilePlaceholder]}>
           <Text style={styles.photoPlus}>+</Text>
         </View>
       </View>
+      <Text style={styles.modeNote}>
+        Live background — the preview shows the approved background before you shoot. If the preview is slow,
+        flickers, or the phone can't keep up, wearto.you switches to "take a plain photo, we'll clean it up
+        automatically" on its own. Either way, the published photo looks the same.
+      </Text>
     </View>
   );
 }
 
-function EditStep() {
+function EditStep({
+  backgroundPresetId,
+  setBackgroundPresetId,
+}: {
+  backgroundPresetId: string;
+  setBackgroundPresetId: (id: string) => void;
+}) {
   return (
     <View>
-      <Text style={styles.stepHeading}>Background cleanup</Text>
-      <Text style={styles.stepSub}>Approved warm studio background, applied automatically. Item is never altered.</Text>
-      <View style={styles.compareRow}>
-        <View style={styles.compareCol}>
-          <PlaceholderTile seed={DEMO_SEED} label="Dress" style={styles.compareImage} />
-          <Text style={styles.compareLabel}>Original</Text>
-        </View>
-        <View style={styles.compareCol}>
-          <PlaceholderTile seed={DEMO_SEED} label="Dress" variant="cutout" style={styles.compareImage} />
-          <Text style={styles.compareLabel}>Background removed</Text>
-        </View>
+      <Text style={styles.stepHeading}>Choose the background</Text>
+      <Text style={styles.stepSub}>
+        wearto.you cuts the item out and places it on one approved background. The item itself is never altered.
+      </Text>
+      <Image source={CAPTURED_PRODUCT.source} style={styles.editPreview} resizeMode="cover" />
+      <View style={styles.presetRow}>
+        {BACKGROUND_PRESET_OPTIONS.map((preset: BackgroundPreset & { source: number }) => {
+          const active = preset.id === backgroundPresetId;
+          return (
+            <Pressable key={preset.id} onPress={() => setBackgroundPresetId(preset.id)} style={styles.presetTile}>
+              <Image
+                source={preset.source}
+                style={[styles.presetSwatch, active ? styles.presetSwatchActive : undefined]}
+                resizeMode="cover"
+              />
+            </Pressable>
+          );
+        })}
       </View>
+      <Text style={styles.stepSub}>
+        Label, defect and serial-number photos always stay on a plain background, or keep the original if cutting
+        them out would make the proof less trustworthy.
+      </Text>
     </View>
   );
 }
 
-function DetailsStep() {
+function DetailsStep({
+  rootCategoryId,
+  setRootCategoryId,
+  subcategoryId,
+  setSubcategoryId,
+}: {
+  rootCategoryId: string;
+  setRootCategoryId: (id: string) => void;
+  subcategoryId: string;
+  setSubcategoryId: (id: string) => void;
+}) {
+  const subcategories = getSubcategories(rootCategoryId);
+  const currentSub = subcategories.find((s) => s.id === subcategoryId);
+
   return (
     <View>
       <View style={styles.detailsHeader}>
         <Text style={styles.stepHeading}>Detected details</Text>
         <Text style={styles.editAll}>Edit all</Text>
       </View>
+
+      <Text style={styles.fieldLabel}>Category</Text>
+      <View style={styles.chipRow}>
+        {ROOT_CATEGORIES.map((root) => (
+          <Pressable
+            key={root.id}
+            onPress={() => {
+              setRootCategoryId(root.id);
+              const firstChild = getSubcategories(root.id)[0];
+              if (firstChild) setSubcategoryId(firstChild.id);
+            }}
+            style={[styles.chip, root.id === rootCategoryId ? styles.chipActive : undefined]}
+          >
+            <Text style={[styles.chipText, root.id === rootCategoryId ? styles.chipTextActive : undefined]}>
+              {root.labelEn}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRowScroll}>
+        {subcategories.map((sub) => (
+          <Pressable
+            key={sub.id}
+            onPress={() => setSubcategoryId(sub.id)}
+            style={[styles.chip, sub.id === subcategoryId ? styles.chipActive : undefined]}
+          >
+            <Text style={[styles.chipText, sub.id === subcategoryId ? styles.chipTextActive : undefined]}>
+              {sub.labelEn}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <Text style={styles.categorySummary}>
+        Selected: {ROOT_CATEGORIES.find((r) => r.id === rootCategoryId)?.labelEn} › {currentSub?.labelEn}
+      </Text>
+
       {Object.entries(DETECTED).map(([key, value]) => (
         <View key={key} style={styles.detailRow}>
           <Text style={styles.detailLabel}>{key[0].toUpperCase() + key.slice(1)}</Text>
@@ -178,7 +268,16 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, paddingBottom: spacing.xl },
   stepHeading: { fontSize: 20, fontWeight: typography.weights.heading as "700", color: colors.text, marginBottom: spacing.xs },
   stepSub: { fontSize: 13, color: colors.text, opacity: 0.65, lineHeight: 19, marginBottom: spacing.md },
-  photoGrid: { flexDirection: "row", gap: spacing.sm },
+  modeNote: {
+    fontSize: 12,
+    color: colors.text,
+    opacity: 0.6,
+    lineHeight: 18,
+    backgroundColor: colors.highlight,
+    borderRadius: radii.card,
+    padding: spacing.sm,
+  },
+  photoGrid: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   photoTile: { width: 120, height: 150, borderRadius: radii.card, backgroundColor: colors.neutralSurface },
   photoTilePlaceholder: {
     alignItems: "center",
@@ -188,13 +287,42 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
   },
   photoPlus: { fontSize: 28, color: colors.text, opacity: 0.4 },
-  compareRow: { flexDirection: "row", gap: spacing.sm },
-  compareCol: { flex: 1, alignItems: "center" },
-  compareImage: { width: "100%", aspectRatio: 0.8, borderRadius: radii.card, backgroundColor: colors.neutralSurface },
-  compareImageBg: { borderWidth: 1, borderColor: colors.primary },
-  compareLabel: { fontSize: 12, color: colors.text, opacity: 0.7, marginTop: spacing.xs },
+  editPreview: {
+    width: "100%",
+    aspectRatio: 0.8,
+    borderRadius: radii.card,
+    backgroundColor: colors.neutralSurface,
+    marginBottom: spacing.md,
+  },
+  presetRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
+  presetTile: { flex: 1 },
+  presetSwatch: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: radii.card / 2,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  presetSwatchActive: {
+    borderColor: colors.primary,
+  },
   detailsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
   editAll: { fontSize: 13, color: colors.primary, fontWeight: typography.weights.bodyMedium as "500" },
+  fieldLabel: { fontSize: 13, color: colors.text, opacity: 0.6, marginBottom: spacing.xs },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: spacing.sm },
+  chipRowScroll: { marginBottom: spacing.xs },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 8,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 13, color: colors.text, fontWeight: typography.weights.bodyMedium as "500" },
+  chipTextActive: { color: colors.surface },
+  categorySummary: { fontSize: 12, color: colors.text, opacity: 0.6, marginBottom: spacing.md },
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",

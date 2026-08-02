@@ -64,19 +64,21 @@ function AppShell() {
   const activeTab = SCREEN_TAB[current.name] ?? "discover";
 
   return (
-    <View style={styles.safeArea}>
-      <StatusBar style="dark" />
-      <View style={styles.screenArea}>
-        <Screen />
-      </View>
-      <View style={styles.bottomNav}>
-        {TABS.map((tab) => (
-          <Pressable key={tab.key} onPress={() => reset(tab.root)} style={styles.tabButton}>
-            <Text style={[styles.tabLabel, tab.key === activeTab ? styles.tabLabelActive : undefined]}>
-              {tab.label}
-            </Text>
-          </Pressable>
-        ))}
+    <View style={styles.pageOuter}>
+      <View style={styles.safeArea}>
+        <StatusBar style="dark" />
+        <View style={styles.screenArea}>
+          <Screen />
+        </View>
+        <View style={styles.bottomNav}>
+          {TABS.map((tab) => (
+            <Pressable key={tab.key} onPress={() => reset(tab.root)} style={styles.tabButton}>
+              <Text style={[styles.tabLabel, tab.key === activeTab ? styles.tabLabelActive : undefined]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -93,8 +95,15 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  pageOuter: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: colors.neutralSurface,
+  },
   safeArea: {
     flex: 1,
+    width: "100%",
+    maxWidth: 480,
     backgroundColor: colors.background,
   },
   screenArea: {

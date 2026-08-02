@@ -1,7 +1,7 @@
+import { getCategory } from "@wearto-you/domain";
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card, InfoRow } from "../components/InfoRow";
-import { PlaceholderTile } from "../components/PlaceholderTile";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Header } from "../components/Header";
 import { formatMoney } from "../data/seed";
@@ -22,27 +22,17 @@ export function ProductDetailScreen() {
   }
 
   const sold = listing.status === "sold" || listing.status === "reserved";
+  const category = getCategory(listing.categoryId);
 
   return (
     <View style={styles.container}>
-      <Header title={listing.brand2} right="♡" />
+      <Header title={category?.labelEn ?? "Item"} right="♡" />
       <ScrollView contentContainerStyle={styles.content}>
-        <PlaceholderTile
-          seed={listing.id}
-          label={listing.title.sellerSelectedValue ?? listing.brand2}
-          style={styles.mainImage}
-        />
-        {listing.images.length > 1 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbRow}>
-            {listing.images.map((_, i) => (
-              <PlaceholderTile key={i} seed={`${listing.id}-${i}`} label={listing.brand2} style={styles.thumb} />
-            ))}
-          </ScrollView>
-        ) : null}
+        <Image source={listing.imageSource} style={styles.mainImage} resizeMode="cover" />
 
         <Text style={styles.title}>{listing.title.sellerSelectedValue}</Text>
         <Text style={styles.size}>
-          {listing.brand2} · Size {listing.size.sellerSelectedValue} · {listing.color.sellerSelectedValue}
+          Size {listing.size.sellerSelectedValue} · {listing.color.sellerSelectedValue}
         </Text>
 
         <Card>
@@ -88,16 +78,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     backgroundColor: colors.neutralSurface,
     marginBottom: spacing.sm,
-  },
-  thumbRow: {
-    marginBottom: spacing.md,
-  },
-  thumb: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    marginRight: spacing.xs,
-    backgroundColor: colors.neutralSurface,
   },
   title: {
     fontSize: 22,

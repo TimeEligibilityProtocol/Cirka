@@ -1,3 +1,4 @@
+import { getRootCategoryId, ROOT_CATEGORIES } from "@wearto-you/domain";
 import { colors, spacing, typography } from "@wearto-you/ui";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -6,21 +7,16 @@ import { Pill } from "../components/Pill";
 import { useStack } from "../nav/stack";
 import { useStore } from "../state/store";
 
-const CATEGORIES = [
-  { key: "all", label: "All" },
-  { key: "clothing", label: "Dresses & Tops" },
-  { key: "bags", label: "Bags" },
-  { key: "shoes", label: "Shoes" },
-  { key: "jewelry_accessories", label: "Accessories" },
-] as const;
+const ALL = "all";
 
 export function DiscoverScreen() {
   const { listings } = useStore();
   const { push } = useStack();
-  const [activeCategory, setActiveCategory] = useState<(typeof CATEGORIES)[number]["key"]>("all");
+  const [activeCategory, setActiveCategory] = useState<string>(ALL);
 
   const visible = listings.filter((l) => l.status !== "removed" && l.status !== "hidden");
-  const filtered = activeCategory === "all" ? visible : visible.filter((l) => l.category === activeCategory);
+  const filtered =
+    activeCategory === ALL ? visible : visible.filter((l) => getRootCategoryId(l.categoryId) === activeCategory);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -29,8 +25,9 @@ export function DiscoverScreen() {
       </View>
       <Text style={styles.heading}>Discover</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pills}>
-        {CATEGORIES.map((c) => (
-          <Pill key={c.key} label={c.label} active={activeCategory === c.key} onPress={() => setActiveCategory(c.key)} />
+        <Pill label="All" active={activeCategory === ALL} onPress={() => setActiveCategory(ALL)} />
+        {ROOT_CATEGORIES.map((c) => (
+          <Pill key={c.id} label={c.labelEn} active={activeCategory === c.id} onPress={() => setActiveCategory(c.id)} />
         ))}
       </ScrollView>
       <View style={styles.grid}>

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "aspectRatio": "4:5",
+  "masterWidth": 2400,
+  "masterHeight": 3000,
+  "baseColor": "#E9D8C2",
+  "shadowColor": "#8B6A55",
+  "defaultPresetId": "solid-beige",
+  "presets": [
+    {
+      "id": "solid-beige",
+      "file": "backgrounds/01-solid-beige.png",
+      "allowedForMainPhoto": true,
+      "allowedForEvidencePhoto": true
+    },
+    {
+      "id": "soft-halo",
+      "file": "backgrounds/02-soft-halo.png",
+      "allowedForMainPhoto": true,
+      "allowedForEvidencePhoto": false
+    },
+    {
+      "id": "studio-shadow",
+      "file": "backgrounds/03-studio-shadow.png",
+      "allowedForMainPhoto": true,
+      "allowedForEvidencePhoto": false
+    },
+    {
+      "id": "architectural-arch",
+      "file": "backgrounds/04-architectural-arch.png",
+      "allowedForMainPhoto": true,
+      "allowedForEvidencePhoto": false
+    },
+    {
+      "id": "palm-shadow",
+      "file": "backgrounds/05-palm-shadow.png",
+      "allowedForMainPhoto": true,
+      "allowedForEvidencePhoto": false
+    }
+  ]
+}
