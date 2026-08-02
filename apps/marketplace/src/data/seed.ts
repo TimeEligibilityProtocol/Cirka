@@ -15,6 +15,7 @@ export function formatMoney(money: Money): string {
 
 export interface DemoListing extends Listing {
   imageSource: number;
+  imageAlt: string;
   conditionLabel: string;
   measurements: string;
 }
@@ -110,6 +111,7 @@ function listingFromDemoProduct(product: DemoProductAsset): DemoListing {
     lastConfirmedAvailableAt: now,
     expiresAt: null,
     imageSource: product.source,
+    imageAlt: product.alt,
     conditionLabel: condition.note,
     measurements: detail.measurements,
   };

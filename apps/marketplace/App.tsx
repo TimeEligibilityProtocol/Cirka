@@ -97,13 +97,11 @@ export default function App() {
 const styles = StyleSheet.create({
   pageOuter: {
     flex: 1,
-    alignItems: "center",
-    backgroundColor: colors.neutralSurface,
+    backgroundColor: colors.background,
   },
   safeArea: {
     flex: 1,
     width: "100%",
-    maxWidth: 480,
     backgroundColor: colors.background,
   },
   screenArea: {

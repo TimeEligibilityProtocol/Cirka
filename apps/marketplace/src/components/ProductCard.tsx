@@ -1,14 +1,37 @@
-import { colors, radii, spacing, typography } from "@wearto-you/ui";
+import { colors, typography } from "@wearto-you/ui";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { DemoListing, formatMoney } from "../data/seed";
 
-export function ProductCard({ listing, onPress }: { listing: DemoListing; onPress: () => void }) {
+export function ProductCard({
+  listing,
+  onPress,
+  cardWidth,
+  imageRadius,
+  heartSize,
+}: {
+  listing: DemoListing;
+  onPress: () => void;
+  cardWidth: number;
+  imageRadius: number;
+  heartSize: number;
+}) {
   const sold = listing.status === "sold" || listing.status === "reserved";
   return (
-    <Pressable onPress={onPress} style={styles.card}>
-      <View style={styles.imageWrap}>
-        <Image source={listing.imageSource} style={styles.image} resizeMode="cover" />
-        <View style={styles.heart}>
+    <Pressable onPress={onPress} style={[styles.card, { width: cardWidth }]}>
+      <View style={[styles.imageWrap, { borderRadius: imageRadius }]}>
+        <Image
+          source={listing.imageSource}
+          style={[styles.image, { resizeMode: "cover" }]}
+          accessibilityLabel={listing.imageAlt}
+        />
+        <View
+          style={[
+            styles.heart,
+            { width: heartSize, height: heartSize, borderRadius: heartSize / 2 },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Save to favorites"
+        >
           <Text style={styles.heartIcon}>♡</Text>
         </View>
         {sold ? (
@@ -26,15 +49,12 @@ export function ProductCard({ listing, onPress }: { listing: DemoListing; onPres
 }
 
 const styles = StyleSheet.create({
-  card: {
-    width: "48%",
-  },
+  card: {},
   imageWrap: {
     aspectRatio: 0.8,
-    borderRadius: radii.card,
     overflow: "hidden",
-    backgroundColor: colors.neutralSurface,
-    marginBottom: spacing.xs,
+    backgroundColor: "#E9D8C2", // image-layout-spec.json containerBackground
+    marginBottom: 8,
   },
   image: {
     width: "100%",
@@ -42,11 +62,8 @@ const styles = StyleSheet.create({
   },
   heart: {
     position: "absolute",
-    top: spacing.xs,
-    right: spacing.xs,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    top: 11,
+    right: 11,
     backgroundColor: "rgba(255,253,252,0.9)",
     alignItems: "center",
     justifyContent: "center",
@@ -57,10 +74,10 @@ const styles = StyleSheet.create({
   },
   soldBadge: {
     position: "absolute",
-    bottom: spacing.xs,
-    left: spacing.xs,
+    bottom: 8,
+    left: 8,
     backgroundColor: colors.text,
-    borderRadius: radii.pill,
+    borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },

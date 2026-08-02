@@ -63,6 +63,7 @@ export function AddListingScreen() {
       lastConfirmedAvailableAt: new Date(0).toISOString(),
       expiresAt: null,
       imageSource: CAPTURED_PRODUCT.source,
+      imageAlt: CAPTURED_PRODUCT.alt,
       conditionLabel: "Excellent — like new.",
       measurements: "64 cm (W) × 112 cm (L)",
     };

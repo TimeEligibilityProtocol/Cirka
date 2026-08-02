@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "productAspectRatio": "4:5",
+  "aspectRatioNumeric": 0.8,
+  "containerBackground": "#E9D8C2",
+  "master": {
+    "width": 2400,
+    "height": 3000,
+    "minimumWidth": 1200,
+    "minimumHeight": 1500
+  },
+  "variants": [
+    { "id": "thumb", "width": 320, "height": 400, "format": "webp", "targetMaxKb": 50 },
+    { "id": "card-sm", "width": 480, "height": 600, "format": "webp", "targetMaxKb": 90 },
+    { "id": "card-md", "width": 640, "height": 800, "format": "webp", "targetMaxKb": 120 },
+    { "id": "card-lg", "width": 800, "height": 1000, "format": "webp", "targetMaxKb": 180 },
+    { "id": "detail", "width": 1200, "height": 1500, "format": "webp", "targetMaxKb": 300 },
+    { "id": "detail-hd", "width": 1600, "height": 2000, "format": "webp", "targetMaxKb": 500 },
+    { "id": "master", "width": 2400, "height": 3000, "format": "png", "feedEligible": false }
+  ],
+  "feedBreakpoints": [
+    { "id": "mobile-small", "minWidth": 0, "maxWidth": 479, "columns": 2, "pagePadding": 12, "columnGap": 12, "rowGap": 20, "imageRadius": 12 },
+    { "id": "mobile-large", "minWidth": 480, "maxWidth": 767, "columns": 2, "pagePadding": 16, "columnGap": 16, "rowGap": 24, "imageRadius": 12 },
+    { "id": "tablet", "minWidth": 768, "maxWidth": 1023, "columns": 3, "pagePadding": 24, "columnGap": 20, "rowGap": 28, "imageRadius": 12 },
+    { "id": "desktop", "minWidth": 1024, "maxWidth": 1439, "columns": 4, "pagePadding": 32, "columnGap": 24, "rowGap": 32, "imageRadius": 12 },
+    { "id": "desktop-large", "minWidth": 1440, "maxWidth": null, "columns": 4, "pagePadding": 48, "columnGap": 24, "rowGap": 32, "imageRadius": 12, "contentMaxWidth": 1440 }
+  ],
+  "productDetail": {
+    "mobile": {
+      "maxWidth": 767,
+      "sidePadding": 16,
+      "visibleImages": 1,
+      "contentFit": "contain",
+      "interaction": "horizontal-snap-carousel"
+    },
+    "tablet": {
+      "minWidth": 768,
+      "maxWidth": 1023,
+      "sidePadding": 24,
+      "visibleImages": 1,
+      "contentFit": "contain"
+    },
+    "desktop": {
+      "minWidth": 1024,
+      "pageMaxWidth": 1360,
+      "galleryPercent": 60,
+      "detailsPercent": 40,
+      "columnGapMin": 48,
+      "columnGapMax": 64,
+      "mainImageMaxWidth": 720,
+      "thumbnailWidth": 88,
+      "thumbnailHeight": 110,
+      "thumbnailGap": 12,
+      "contentFit": "contain",
+      "detailsSticky": true
+    }
+  },
+  "imageBehavior": {
+    "feedContentFit": "cover",
+    "detailContentFit": "contain",
+    "contentPosition": "center",
+    "safeMarginPercentMin": 6,
+    "safeMarginPercentMax": 10,
+    "preserveOriginal": true,
+    "allowGenerativeProductCompletion": false,
+    "lazyLoadBelowFold": true,
+    "priorityLoadProductHero": true
+  },
+  "visualTestWidths": [360, 390, 768, 1024, 1440]
+}

@@ -1,7 +1,7 @@
-import { getRootCategoryId, ROOT_CATEGORIES } from "@wearto-you/domain";
-import { colors, spacing, typography } from "@wearto-you/ui";
+import { getRootCategoryId, getSubcategories, ROOT_CATEGORIES } from "@wearto-you/domain";
+import { colors, getFeedBreakpoint, HEART_BUTTON, isDesktopWidth, typography } from "@wearto-you/ui";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { ProductCard } from "../components/ProductCard";
 import { Pill } from "../components/Pill";
 import { useStack } from "../nav/stack";
@@ -13,29 +13,84 @@ export function DiscoverScreen() {
   const { listings } = useStore();
   const { push } = useStack();
   const [activeCategory, setActiveCategory] = useState<string>(ALL);
+  const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
+  const { width } = useWindowDimensions();
+
+  const subcategories = activeCategory === ALL ? [] : getSubcategories(activeCategory);
 
   const visible = listings.filter((l) => l.status !== "removed" && l.status !== "hidden");
-  const filtered =
-    activeCategory === ALL ? visible : visible.filter((l) => getRootCategoryId(l.categoryId) === activeCategory);
+  const filtered = visible.filter((l) => {
+    if (activeCategory === ALL) return true;
+    if (activeSubcategory) return l.categoryId === activeSubcategory;
+    return getRootCategoryId(l.categoryId) === activeCategory;
+  });
+
+  const breakpoint = getFeedBreakpoint(width);
+  const contentWidth = Math.min(width, breakpoint.contentMaxWidth ?? width);
+  const cardWidth =
+    (contentWidth - breakpoint.pagePadding * 2 - breakpoint.columnGap * (breakpoint.columns - 1)) /
+    breakpoint.columns;
+  const heartSize = isDesktopWidth(width) ? HEART_BUTTON.desktop : HEART_BUTTON.mobile;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.topBar}>
-        <Text style={styles.wordmark}>wearto.you</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <View style={[styles.content, { width: contentWidth, paddingHorizontal: breakpoint.pagePadding }]}>
+        <View style={styles.topBar}>
+          <Text style={styles.wordmark}>wearto.you</Text>
+        </View>
+        <Text style={styles.heading}>Discover</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pills}>
+          <Pill
+            label="All"
+            active={activeCategory === ALL}
+            onPress={() => {
+              setActiveCategory(ALL);
+              setActiveSubcategory(null);
+            }}
+          />
+          {ROOT_CATEGORIES.map((c) => (
+            <Pill
+              key={c.id}
+              label={c.labelEn}
+              active={activeCategory === c.id}
+              onPress={() => {
+                setActiveCategory(c.id);
+                setActiveSubcategory(null);
+              }}
+            />
+          ))}
+        </ScrollView>
+        {subcategories.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subPills}>
+            <Pill
+              label={`All ${ROOT_CATEGORIES.find((c) => c.id === activeCategory)?.labelEn}`}
+              active={activeSubcategory === null}
+              onPress={() => setActiveSubcategory(null)}
+            />
+            {subcategories.map((sub) => (
+              <Pill
+                key={sub.id}
+                label={sub.labelEn}
+                active={activeSubcategory === sub.id}
+                onPress={() => setActiveSubcategory(sub.id)}
+              />
+            ))}
+          </ScrollView>
+        ) : null}
+        <View style={[styles.grid, { columnGap: breakpoint.columnGap, rowGap: breakpoint.rowGap }]}>
+          {filtered.map((listing) => (
+            <ProductCard
+              key={listing.id}
+              listing={listing}
+              cardWidth={cardWidth}
+              imageRadius={breakpoint.imageRadius}
+              heartSize={heartSize}
+              onPress={() => push("ProductDetail", { listingId: listing.id })}
+            />
+          ))}
+        </View>
+        {filtered.length === 0 ? <Text style={styles.empty}>No items in this category yet.</Text> : null}
       </View>
-      <Text style={styles.heading}>Discover</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pills}>
-        <Pill label="All" active={activeCategory === ALL} onPress={() => setActiveCategory(ALL)} />
-        {ROOT_CATEGORIES.map((c) => (
-          <Pill key={c.id} label={c.labelEn} active={activeCategory === c.id} onPress={() => setActiveCategory(c.id)} />
-        ))}
-      </ScrollView>
-      <View style={styles.grid}>
-        {filtered.map((listing) => (
-          <ProductCard key={listing.id} listing={listing} onPress={() => push("ProductDetail", { listingId: listing.id })} />
-        ))}
-      </View>
-      {filtered.length === 0 ? <Text style={styles.empty}>No items in this category yet.</Text> : null}
     </ScrollView>
   );
 }
@@ -45,12 +100,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scrollContent: {
+    alignItems: "center",
+    paddingBottom: 32,
+  },
   content: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
+    alignSelf: "center",
   },
   topBar: {
-    marginBottom: spacing.sm,
+    marginBottom: 8,
+    marginTop: 16,
   },
   wordmark: {
     fontSize: 15,
@@ -62,19 +121,20 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: typography.weights.heading as "700",
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: 8,
   },
   pills: {
-    marginBottom: spacing.md,
+    marginBottom: 8,
+  },
+  subPills: {
+    marginBottom: 16,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: spacing.md,
   },
   empty: {
-    marginTop: spacing.lg,
+    marginTop: 24,
     color: colors.text,
     opacity: 0.6,
   },
