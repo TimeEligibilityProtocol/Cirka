@@ -6,7 +6,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { Header } from "../components/Header";
 import { formatMoney } from "../data/seed";
 import { useStack } from "../nav/stack";
-import { useStore } from "../state/store";
+import { listingImageAlt, listingImageUrl, useStore } from "../state/store";
 
 const DESKTOP = PRODUCT_DETAIL_LAYOUT.desktop;
 
@@ -51,7 +51,10 @@ export function ProductDetailScreen() {
       {desktop ? buyBlock : null}
 
       <Card>
-        <InfoRow label="Condition" value={`${listing.condition.sellerSelectedValue} — ${listing.conditionLabel}`} />
+        <InfoRow
+          label="Condition"
+          value={[listing.condition.sellerSelectedValue, listing.condition.sellerNote].filter(Boolean).join(" — ")}
+        />
         <InfoRow label="Measurements" value={listing.measurements} />
         <InfoRow label="Material" value={listing.material.sellerSelectedValue ?? "—"} />
         <InfoRow label="Description" value={listing.description.sellerSelectedValue ?? "—"} />
@@ -74,9 +77,9 @@ export function ProductDetailScreen() {
           <View style={desktop ? styles.galleryColDesktop : styles.content}>
             <View style={desktop ? styles.mainImageWrapDesktop : styles.mainImageWrap}>
               <Image
-                source={listing.imageSource}
+                source={{ uri: listingImageUrl(listing) }}
                 style={[styles.mainImage, { resizeMode: "contain" }] as ImageStyle[]}
-                accessibilityLabel={listing.imageAlt}
+                accessibilityLabel={listingImageAlt(listing)}
               />
             </View>
             {!desktop ? infoBlock : null}

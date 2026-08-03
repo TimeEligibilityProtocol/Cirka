@@ -1,26 +1,23 @@
 import {
+  approvedField,
   BackgroundPreset,
   DEFAULT_BACKGROUND_PRESET_ID,
   getSubcategories,
+  Listing,
   ROOT_CATEGORIES,
 } from "@wearto-you/domain";
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BACKGROUND_PRESET_OPTIONS } from "../assets/backgroundPresets";
-import { DEMO_PRODUCTS } from "../assets/demoProducts";
 import { Header } from "../components/Header";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { StepperHeader } from "../components/StepperHeader";
-import { aed, approved, DemoListing, formatMoney } from "../data/seed";
+import { aed, formatMoney } from "../data/seed";
 import { useStack } from "../nav/stack";
-import { useStore } from "../state/store";
+import { listingImageUrl, useStore } from "../state/store";
 
 const STEPS = ["Photo", "Edit", "Details", "Review"];
-
-// The item the seller "just photographed" for this walkthrough — a real
-// approved demo photo, not a stock image. See docs/product/source-assets.
-const CAPTURED_PRODUCT = DEMO_PRODUCTS.find((p) => p.id === "demo-dress-001")!;
 
 const DETECTED = {
   color: "Cream",
@@ -30,55 +27,80 @@ const DETECTED = {
 
 export function AddListingScreen() {
   const { reset } = useStack();
-  const { addListing } = useStore();
+  const { listings, addListing } = useStore();
   const [step, setStep] = useState(0);
   const [price, setPrice] = useState("450");
   const [backgroundPresetId, setBackgroundPresetId] = useState(DEFAULT_BACKGROUND_PRESET_ID);
   const [rootCategoryId, setRootCategoryId] = useState("clothing");
   const [subcategoryId, setSubcategoryId] = useState("clothing-dresses");
+  const [publishing, setPublishing] = useState(false);
+
+  // The item the seller "just photographed" for this walkthrough — reuses
+  // a real approved demo photo already served by the API, rather than a
+  // second copy bundled into this app. See docs/product/source-assets.
+  const capturedListing = listings.find((l) => l.id === "demo-dress-001");
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  const onPublish = () => {
+  const onPublish = async () => {
+    if (publishing || !capturedListing) return;
+    setPublishing(true);
     const priceNumber = Number(price) || 0;
-    const newListing: DemoListing = {
+    const newListing: Listing = {
       id: `l_new_${Date.now()}`,
       sellerId: "seller_demo",
       tenantId: "wearto_you",
       categoryId: subcategoryId,
       status: "active",
-      title: approved(CAPTURED_PRODUCT.title),
-      description: approved("Newly listed via Magic Listing — AI-assisted draft, reviewed and approved by seller."),
-      brand: approved("Unbranded"),
-      color: approved(DETECTED.color),
-      size: approved("M"),
-      material: approved(DETECTED.material),
-      condition: approved(DETECTED.condition),
+      title: approvedField(capturedListing.title.sellerSelectedValue ?? "New listing"),
+      description: approvedField("Newly listed via Magic Listing — AI-assisted draft, reviewed and approved by seller."),
+      brand: approvedField("Unbranded"),
+      color: approvedField(DETECTED.color),
+      size: approvedField("M"),
+      material: approvedField(DETECTED.material),
+      condition: approvedField(DETECTED.condition, "Like new."),
       labelStatus: "available",
+      images: capturedListing.images,
+      measurements: "64 cm (W) × 112 cm (L)",
       price: aed(priceNumber),
       negotiable: false,
       minimumOfferMinor: null,
       createdAt: new Date(0).toISOString(),
       lastConfirmedAvailableAt: new Date(0).toISOString(),
       expiresAt: null,
-      imageSource: CAPTURED_PRODUCT.source,
-      imageAlt: CAPTURED_PRODUCT.alt,
-      conditionLabel: "Excellent — like new.",
-      measurements: "64 cm (W) × 112 cm (L)",
     };
-    addListing(newListing);
-    reset("Discover");
+    try {
+      await addListing(newListing);
+      reset("Discover");
+    } finally {
+      setPublishing(false);
+    }
   };
+
+  if (!capturedListing) {
+    return (
+      <View style={styles.container}>
+        <Header title="Magic Listing" />
+        <View style={styles.content}>
+          <Text style={styles.stepSub}>Loading…</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Header title="Magic Listing" />
       <StepperHeader steps={STEPS} activeIndex={step} />
       <ScrollView contentContainerStyle={styles.content}>
-        {step === 0 ? <PhotoStep /> : null}
+        {step === 0 ? <PhotoStep imageUri={listingImageUrl(capturedListing)} /> : null}
         {step === 1 ? (
-          <EditStep backgroundPresetId={backgroundPresetId} setBackgroundPresetId={setBackgroundPresetId} />
+          <EditStep
+            imageUri={listingImageUrl(capturedListing)}
+            backgroundPresetId={backgroundPresetId}
+            setBackgroundPresetId={setBackgroundPresetId}
+          />
         ) : null}
         {step === 2 ? (
           <DetailsStep
@@ -93,7 +115,7 @@ export function AddListingScreen() {
       <View style={styles.footer}>
         {step > 0 ? <PrimaryButton label="Back" variant="secondary" onPress={back} style={styles.backBtn} /> : null}
         <PrimaryButton
-          label={step === STEPS.length - 1 ? "Publish" : "Continue"}
+          label={step === STEPS.length - 1 ? (publishing ? "Publishing…" : "Publish") : "Continue"}
           onPress={step === STEPS.length - 1 ? onPublish : next}
           style={styles.continueBtn}
         />
@@ -102,13 +124,13 @@ export function AddListingScreen() {
   );
 }
 
-function PhotoStep() {
+function PhotoStep({ imageUri }: { imageUri: string }) {
   return (
     <View>
       <Text style={styles.stepHeading}>Photograph the item</Text>
       <Text style={styles.stepSub}>Front, back, fabric close-up, label — follow the category guide.</Text>
       <View style={styles.photoGrid}>
-        <Image source={CAPTURED_PRODUCT.source} style={styles.photoTile} resizeMode="cover" />
+        <Image source={{ uri: imageUri }} style={[styles.photoTile, { resizeMode: "cover" }]} />
         <View style={[styles.photoTile, styles.photoTilePlaceholder]}>
           <Text style={styles.photoPlus}>+</Text>
         </View>
@@ -123,9 +145,11 @@ function PhotoStep() {
 }
 
 function EditStep({
+  imageUri,
   backgroundPresetId,
   setBackgroundPresetId,
 }: {
+  imageUri: string;
   backgroundPresetId: string;
   setBackgroundPresetId: (id: string) => void;
 }) {
@@ -136,7 +160,7 @@ function EditStep({
         wearto.you cuts the item out and places it on one approved background. The item itself is never altered.
       </Text>
       <View style={styles.editPreviewWrap}>
-        <Image source={CAPTURED_PRODUCT.source} style={[styles.fill, { resizeMode: "cover" }]} />
+        <Image source={{ uri: imageUri }} style={[styles.fill, { resizeMode: "cover" }]} />
       </View>
       <View style={styles.presetRow}>
         {BACKGROUND_PRESET_OPTIONS.map((preset: BackgroundPreset & { source: number }) => {

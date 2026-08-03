@@ -1,4 +1,4 @@
-import { getCategory } from "@wearto-you/domain";
+import { computeDeliveryFeeMinor, DELIVERY_OPTIONS, DeliveryMethod, getCategory } from "@wearto-you/domain";
 import { colors, IMAGE_CONTAINER_BACKGROUND, radii, spacing, typography } from "@wearto-you/ui";
 import { useEffect, useState } from "react";
 import { Image, ImageStyle, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -6,7 +6,7 @@ import { Header } from "../components/Header";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { aed, formatMoney } from "../data/seed";
 import { useStack } from "../nav/stack";
-import { useStore } from "../state/store";
+import { listingImageAlt, listingImageUrl, useStore } from "../state/store";
 
 // Layout constants scoped to this screen only — not promoted to shared
 // tokens, per the instruction to fix this screen's layout without
@@ -16,24 +16,6 @@ const TABLET_MIN = 768;
 const DESKTOP_MAX_WIDTH = 1120;
 const DESKTOP_SIDEBAR_WIDTH = 380;
 const TABLET_MAX_WIDTH = 760;
-
-const FREE_DELIVERY_THRESHOLD_MINOR = 30000; // AED 300
-const COURIER_FEE_MINOR = 1500; // AED 15
-
-const DELIVERY_OPTIONS = [
-  {
-    id: "courier",
-    label: "Courier delivery",
-    detail: "2–3 days",
-    feeMinor: (itemMinor: number) => (itemMinor >= FREE_DELIVERY_THRESHOLD_MINOR ? 0 : COURIER_FEE_MINOR),
-  },
-  {
-    id: "pickup",
-    label: "Personal pickup",
-    detail: "Dubai · QR handoff on collection",
-    feeMinor: () => 0,
-  },
-] as const;
 
 /**
  * Only offer payment methods that can realistically work on this device.
@@ -60,11 +42,11 @@ function useAvailablePaymentMethods(): string[] {
 
 export function CheckoutScreen() {
   const { current, push } = useStack();
-  const { listings, createOrder, markPaid } = useStore();
+  const { listings, purchase } = useStore();
   const listing = listings.find((l) => l.id === current.params?.listingId);
   const methods = useAvailablePaymentMethods();
   const [method, setMethod] = useState(methods[0]);
-  const [deliveryId, setDeliveryId] = useState<(typeof DELIVERY_OPTIONS)[number]["id"]>("courier");
+  const [deliveryId, setDeliveryId] = useState<DeliveryMethod>("courier");
   const [paying, setPaying] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
@@ -76,21 +58,22 @@ export function CheckoutScreen() {
 
   if (!listing) return null;
 
-  const delivery = DELIVERY_OPTIONS.find((d) => d.id === deliveryId)!;
-  const deliveryFeeMinor = delivery.feeMinor(listing.price.amountMinor);
+  const deliveryFeeMinor = computeDeliveryFeeMinor(deliveryId, listing.price.amountMinor);
   const totalMinor = listing.price.amountMinor + deliveryFeeMinor;
   const total = aed(totalMinor / 100);
 
-  const onPay = () => {
+  const onPay = async () => {
     if (paying) return;
     setPaymentError(null);
     setPaying(true);
-    setTimeout(() => {
-      setPaying(false);
-      const order = createOrder(listing.id);
-      markPaid(order.id, listing.id);
+    try {
+      const { order } = await purchase(listing.id, deliveryId);
       push("OrderStatus", { orderId: order.id });
-    }, 600);
+    } catch {
+      setPaymentError("Payment couldn't be confirmed by the payment operator. No charge was made — please try again.");
+    } finally {
+      setPaying(false);
+    }
   };
 
   const onSimulateFailure = () => {
@@ -103,9 +86,9 @@ export function CheckoutScreen() {
       <View style={styles.productRow}>
         <View style={styles.thumbWrap}>
           <Image
-            source={listing.imageSource}
+            source={{ uri: listingImageUrl(listing) }}
             style={[styles.thumb, { resizeMode: "cover" }] as ImageStyle[]}
-            accessibilityLabel={listing.imageAlt}
+            accessibilityLabel={listingImageAlt(listing)}
           />
         </View>
         <View style={styles.productInfo}>
@@ -126,7 +109,7 @@ export function CheckoutScreen() {
     <View style={styles.card}>
       <Text style={styles.sectionLabel}>Delivery</Text>
       {DELIVERY_OPTIONS.map((opt) => {
-        const fee = opt.feeMinor(listing.price.amountMinor);
+        const fee = computeDeliveryFeeMinor(opt.id, listing.price.amountMinor);
         const active = opt.id === deliveryId;
         return (
           <Pressable key={opt.id} onPress={() => setDeliveryId(opt.id)} style={[styles.optionRow, active ? styles.optionRowActive : undefined]}>

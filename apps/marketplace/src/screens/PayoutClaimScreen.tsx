@@ -5,7 +5,12 @@ import { Header } from "../components/Header";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { formatMoney } from "../data/seed";
 import { useStack } from "../nav/stack";
-import { ClaimChannel, commissionFor, useStore } from "../state/store";
+import { commissionFor, useStore } from "../state/store";
+
+// Channel choice is client-side UI state for now — not yet persisted by
+// the API (the backend just has a single "claim_sent" transition). Will
+// move server-side once wayto.you's own claim-channel API is wired up.
+type ClaimChannel = "email" | "whatsapp";
 
 export function PayoutClaimScreen() {
   const { current, push } = useStack();
@@ -18,8 +23,8 @@ export function PayoutClaimScreen() {
 
   const { sellerPayout } = commissionFor(order);
 
-  const onSend = () => {
-    sendClaim(order.id, channel);
+  const onSend = async () => {
+    await sendClaim(order.id);
     push("ClaimDetail", { orderId: order.id });
   };
 

@@ -17,8 +17,8 @@ export function QRHandoffScreen() {
 
   if (!order) return null;
 
-  const onConfirm = () => {
-    confirmPickup(order.id);
+  const onConfirm = async () => {
+    await confirmPickup(order.id);
     push("PayoutClaim", { orderId: order.id });
   };
 

@@ -18,6 +18,12 @@ export interface AiAssistedField<T> {
   sellerNote: string | null;
 }
 
+/** A single listing photo. `url` is server-relative (e.g. "/assets/demo-products/x.webp") — callers prefix it with their own API base URL. */
+export interface ListingImage {
+  url: string;
+  alt: string;
+}
+
 export interface Listing {
   id: string;
   sellerId: string;
@@ -31,8 +37,11 @@ export interface Listing {
   color: AiAssistedField<string>;
   size: AiAssistedField<string>;
   material: AiAssistedField<string>;
+  /** condition.sellerNote carries the human-readable note, e.g. "Gently used with minimal signs of wear." */
   condition: AiAssistedField<string>;
   labelStatus: LabelStatus;
+  images: ListingImage[];
+  measurements: string;
   price: Money;
   negotiable: boolean;
   minimumOfferMinor: number | null; // never exposed via public API
@@ -43,3 +52,8 @@ export interface Listing {
 
 export const LISTING_CONFIRM_AVAILABILITY_AFTER_DAYS = 30;
 export const LISTING_AUTO_EXPIRE_AFTER_DAYS = 60;
+
+/** Builds an AiAssistedField where the AI suggestion is already the seller-approved value. */
+export function approvedField<T>(value: T, sellerNote: string | null = null): AiAssistedField<T> {
+  return { aiSuggestion: value, sellerSelectedValue: value, sellerNote };
+}

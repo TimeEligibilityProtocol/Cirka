@@ -24,6 +24,8 @@ export type OrderDeliveryStatus =
   | "personal_pickup_pending"
   | "personal_pickup_confirmed";
 
+export type DeliveryMethod = "courier" | "pickup";
+
 export type OrderDisputeStatus = "none" | "window_open" | "dispute_opened" | "resolved";
 
 export type OrderPayoutStatus =
@@ -44,6 +46,8 @@ export interface Order {
   tenantId: string;
   priceAtOrder: Money; // snapshot — never changes after listing edits
   commissionBpsAtOrder: number; // snapshot
+  deliveryMethod: DeliveryMethod;
+  deliveryFeeMinor: number;
   paymentStatus: OrderPaymentStatus;
   deliveryStatus: OrderDeliveryStatus;
   disputeStatus: OrderDisputeStatus;

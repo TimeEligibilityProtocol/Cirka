@@ -1,6 +1,8 @@
+import { Listing } from "@wearto-you/domain";
 import { colors, typography } from "@wearto-you/ui";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { DemoListing, formatMoney } from "../data/seed";
+import { formatMoney } from "../data/seed";
+import { listingImageAlt, listingImageUrl } from "../state/store";
 
 export function ProductCard({
   listing,
@@ -9,7 +11,7 @@ export function ProductCard({
   imageRadius,
   heartSize,
 }: {
-  listing: DemoListing;
+  listing: Listing;
   onPress: () => void;
   cardWidth: number;
   imageRadius: number;
@@ -20,9 +22,9 @@ export function ProductCard({
     <Pressable onPress={onPress} style={[styles.card, { width: cardWidth }]}>
       <View style={[styles.imageWrap, { borderRadius: imageRadius }]}>
         <Image
-          source={listing.imageSource}
+          source={{ uri: listingImageUrl(listing) }}
           style={[styles.image, { resizeMode: "cover" }]}
-          accessibilityLabel={listing.imageAlt}
+          accessibilityLabel={listingImageAlt(listing)}
         />
         <View
           style={[

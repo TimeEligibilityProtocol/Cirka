@@ -1,93 +1,108 @@
-import { DISPUTE_WINDOW_DAYS_DEFAULT, Order } from "@wearto-you/domain";
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
-import { aed, DemoListing, SEED_LISTINGS, SEED_ORDERS } from "../data/seed";
-
-export type ClaimChannel = "email" | "whatsapp";
+import { commissionMinor, DeliveryMethod, Listing, Order } from "@wearto-you/domain";
+import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { apiClient } from "../config/apiClient";
 
 interface AppState {
-  listings: DemoListing[];
+  listings: Listing[];
   orders: Order[];
+  loading: boolean;
+  loadError: string | null;
 }
 
 interface AppActions {
-  addListing: (listing: DemoListing) => void;
-  createOrder: (listingId: string) => Order;
-  markPaid: (orderId: string, listingId: string) => void;
-  confirmPickup: (orderId: string) => void;
-  sendClaim: (orderId: string, channel: ClaimChannel) => void;
-  confirmDestination: (orderId: string) => void;
-  completePayout: (orderId: string) => void;
+  refreshListings: () => Promise<void>;
+  addListing: (listing: Listing) => Promise<void>;
+  purchase: (listingId: string, deliveryMethod: DeliveryMethod) => Promise<{ order: Order; listing: Listing }>;
+  confirmPickup: (orderId: string) => Promise<Order>;
+  sendClaim: (orderId: string) => Promise<Order>;
+  confirmDestination: (orderId: string) => Promise<Order>;
+  completePayout: (orderId: string) => Promise<Order>;
 }
 
 const StoreContext = createContext<(AppState & AppActions) | null>(null);
 
-function nextId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
-}
-
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [listings, setListings] = useState<DemoListing[]>(SEED_LISTINGS);
-  const [orders, setOrders] = useState<Order[]>(SEED_ORDERS);
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const refreshListings = async () => {
+    const fresh = await apiClient.listListings();
+    setListings(fresh);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const fresh = await apiClient.listListings();
+        if (!cancelled) setListings(fresh);
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Could not reach the wearto.you API.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const upsertOrder = (order: Order) => {
+    setOrders((prev) => {
+      const exists = prev.some((o) => o.id === order.id);
+      return exists ? prev.map((o) => (o.id === order.id ? order : o)) : [order, ...prev];
+    });
+  };
+
+  const upsertListing = (listing: Listing) => {
+    setListings((prev) => {
+      const exists = prev.some((l) => l.id === listing.id);
+      return exists ? prev.map((l) => (l.id === listing.id ? listing : l)) : [listing, ...prev];
+    });
+  };
 
   const value = useMemo<AppState & AppActions>(
     () => ({
       listings,
       orders,
-      addListing: (listing) => setListings((prev) => [listing, ...prev]),
-      createOrder: (listingId) => {
-        const listing = listings.find((l) => l.id === listingId)!;
-        const order: Order = {
-          id: nextId("order"),
-          listingId,
-          buyerId: "buyer_demo",
-          sellerId: listing.sellerId,
-          tenantId: listing.tenantId,
-          priceAtOrder: listing.price,
-          commissionBpsAtOrder: 1000,
-          paymentStatus: "created",
-          deliveryStatus: "awaiting_courier",
-          disputeStatus: "none",
-          payoutStatus: "not_started",
-          createdAt: new Date(0).toISOString(),
-          disputeWindowExpiresAt: null,
-        };
-        setOrders((prev) => [order, ...prev]);
-        setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, status: "reserved" } : l)));
+      loading,
+      loadError,
+      refreshListings,
+      addListing: async (listing) => {
+        const created = await apiClient.createListing(listing);
+        upsertListing(created);
+      },
+      purchase: async (listingId, deliveryMethod) => {
+        const { order, listing } = await apiClient.purchase(listingId, deliveryMethod);
+        upsertOrder(order);
+        upsertListing(listing);
+        return { order, listing };
+      },
+      confirmPickup: async (orderId) => {
+        const order = await apiClient.confirmPickup(orderId);
+        upsertOrder(order);
         return order;
       },
-      markPaid: (orderId, listingId) => {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, paymentStatus: "paid", deliveryStatus: "delivered" } : o))
-        );
-        setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, status: "sold" } : l)));
+      sendClaim: async (orderId) => {
+        const order = await apiClient.sendClaim(orderId);
+        upsertOrder(order);
+        return order;
       },
-      confirmPickup: (orderId) => {
-        setOrders((prev) =>
-          prev.map((o) =>
-            o.id === orderId
-              ? {
-                  ...o,
-                  deliveryStatus: "personal_pickup_confirmed",
-                  disputeStatus: "resolved",
-                  payoutStatus: "payout_pending",
-                }
-              : o
-          )
-        );
+      confirmDestination: async (orderId) => {
+        const order = await apiClient.confirmDestination(orderId);
+        upsertOrder(order);
+        return order;
       },
-      sendClaim: (orderId, _channel) => {
-        setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, payoutStatus: "claim_sent" } : o)));
-      },
-      confirmDestination: (orderId) => {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, payoutStatus: "destination_confirmed" } : o))
-        );
-      },
-      completePayout: (orderId) => {
-        setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, payoutStatus: "paid_out" } : o)));
+      completePayout: async (orderId) => {
+        const order = await apiClient.completePayout(orderId);
+        upsertOrder(order);
+        return order;
       },
     }),
-    [listings, orders]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listings, orders, loading, loadError]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -100,12 +115,22 @@ export function useStore() {
 }
 
 export function commissionFor(order: Order) {
-  const commissionMinor = Math.round((order.priceAtOrder.amountMinor * order.commissionBpsAtOrder) / 10000);
+  const commission = commissionMinor(order.priceAtOrder.amountMinor, order.commissionBpsAtOrder);
   return {
     total: order.priceAtOrder,
-    commission: aed(commissionMinor / 100),
-    sellerPayout: aed((order.priceAtOrder.amountMinor - commissionMinor) / 100),
+    commission: { amountMinor: commission, currency: order.priceAtOrder.currency },
+    sellerPayout: {
+      amountMinor: order.priceAtOrder.amountMinor - commission,
+      currency: order.priceAtOrder.currency,
+    },
   };
 }
 
-export const DISPUTE_WINDOW_DAYS = DISPUTE_WINDOW_DAYS_DEFAULT;
+export function listingImageUrl(listing: Listing): string {
+  const image = listing.images[0];
+  return image ? apiClient.resolveAssetUrl(image.url) : "";
+}
+
+export function listingImageAlt(listing: Listing): string {
+  return listing.images[0]?.alt ?? "";
+}

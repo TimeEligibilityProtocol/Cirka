@@ -21,9 +21,9 @@ export function ClaimDetailScreen() {
   const { sellerPayout } = commissionFor(order);
   const paidOut = order.payoutStatus === "paid_out";
 
-  const onConfirm = () => {
-    confirmDestination(order.id);
-    completePayout(order.id);
+  const onConfirm = async () => {
+    await confirmDestination(order.id);
+    await completePayout(order.id);
   };
 
   if (paidOut) {

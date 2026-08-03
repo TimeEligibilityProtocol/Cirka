@@ -10,7 +10,7 @@ import { useStore } from "../state/store";
 const ALL = "all";
 
 export function DiscoverScreen() {
-  const { listings } = useStore();
+  const { listings, loading, loadError } = useStore();
   const { push } = useStack();
   const [activeCategory, setActiveCategory] = useState<string>(ALL);
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
@@ -89,7 +89,13 @@ export function DiscoverScreen() {
             />
           ))}
         </View>
-        {filtered.length === 0 ? <Text style={styles.empty}>No items in this category yet.</Text> : null}
+        {loadError ? (
+          <Text style={styles.empty}>Couldn't reach the wearto.you API ({loadError}). Is `npm run dev:api` running?</Text>
+        ) : loading ? (
+          <Text style={styles.empty}>Loading…</Text>
+        ) : filtered.length === 0 ? (
+          <Text style={styles.empty}>No items in this category yet.</Text>
+        ) : null}
       </View>
     </ScrollView>
   );
