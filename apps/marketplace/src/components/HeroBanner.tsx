@@ -5,11 +5,11 @@ import { useStack } from "../nav/stack";
 
 const LANDSCAPE_URL = apiClient.resolveAssetUrl("/assets/hero/hero-landscape.webp");
 const PORTRAIT_URL = apiClient.resolveAssetUrl("/assets/hero/hero-portrait.webp");
-// v2 images were generated pre-composed at these exact ratios (2400x1000
-// and 1080x968) — unlike the v1 assets, no independent crop ratio is
-// needed here; the container just matches the file's own dimensions, so
-// resizeMode "cover" never has to trim anything.
-const LANDSCAPE_ASPECT_RATIO = 2400 / 1000;
+// v3 desktop image (2400x800, wider/shorter, smaller baked buttons
+// relative to the canvas) + v2 mobile image, both pre-composed at their
+// own exact ratios — the container just matches each file's dimensions,
+// so resizeMode "cover" never has to trim anything.
+const LANDSCAPE_ASPECT_RATIO = 2400 / 800;
 const PORTRAIT_ASPECT_RATIO = 1080 / 968;
 
 // The approved hero images have their headline and buttons baked in as
@@ -21,8 +21,8 @@ const PORTRAIT_ASPECT_RATIO = 1080 / 968;
 // artwork changes, these must be re-measured (see scripts used in dev:
 // PIL + connected-components on the button fill color).
 const LANDSCAPE_BUTTONS = {
-  shopNow: { left: "6.0%", top: "78.5%", width: "14.8%", height: "9.2%" },
-  sellYours: { left: "21.8%", top: "78.5%", width: "15.0%", height: "9.1%" },
+  shopNow: { left: "6.2%", top: "76.2%", width: "9.2%", height: "8.0%" },
+  sellYours: { left: "16.4%", top: "76.2%", width: "9.3%", height: "7.9%" },
 } as const;
 const PORTRAIT_BUTTONS = {
   shopNow: { left: "6.7%", top: "55.3%", width: "25.0%", height: "7.8%" },
