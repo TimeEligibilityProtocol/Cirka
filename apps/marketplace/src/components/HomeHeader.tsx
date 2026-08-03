@@ -29,11 +29,12 @@ export function HomeHeader({
     </View>
   );
 
+  // Mobile/tablet already have Saved/Messages/Profile in the bottom nav —
+  // repeating them here would be a duplicate set of the same destinations.
   if (!desktop) {
     return (
       <View style={styles.compactRow}>
-        <Wordmark size={16} />
-        {iconRow}
+        <Wordmark size={19} />
       </View>
     );
   }
