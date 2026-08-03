@@ -34,29 +34,40 @@ export function HomeHeader({
   if (!desktop) {
     return (
       <View style={styles.compactRow}>
-        <Wordmark size={19} />
+        <Wordmark size={28} />
       </View>
     );
   }
 
+  const search = (
+    <View style={styles.searchWrap}>
+      <SearchIcon size={16} color={colors.text} />
+      <TextInput
+        value={searchValue}
+        onChangeText={onSearchChange}
+        placeholder="Search…"
+        placeholderTextColor={`${colors.text}88`}
+        style={[styles.searchInput, { outlineStyle: "none" }] as never}
+      />
+    </View>
+  );
+
+  // Three equal-width zones (search / logo / actions) so the logo sits
+  // dead-center of the header regardless of how wide the other two are,
+  // rather than just centered in the leftover space next to a
+  // fixed-position logo.
   return (
     <View style={styles.desktopRow}>
-      <Wordmark size={30} />
-      <View style={styles.searchWrap}>
-        <SearchIcon size={16} color={colors.text} />
-        <TextInput
-          value={searchValue}
-          onChangeText={onSearchChange}
-          placeholder="Search…"
-          placeholderTextColor={`${colors.text}88`}
-          style={[styles.searchInput, { outlineStyle: "none" }] as never}
-        />
+      <View style={styles.zoneLeft}>{search}</View>
+      <View style={styles.zoneCenter}>
+        <Wordmark size={46} />
       </View>
-      <View style={styles.spacer} />
-      {iconRow}
-      <Pressable style={styles.sellButton} onPress={() => push("AddListing")}>
-        <Text style={styles.sellButtonLabel}>Sell</Text>
-      </Pressable>
+      <View style={styles.zoneRight}>
+        {iconRow}
+        <Pressable style={styles.sellButton} onPress={() => push("AddListing")}>
+          <Text style={styles.sellButtonLabel}>Sell</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -65,16 +76,33 @@ const styles = StyleSheet.create({
   compactRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginTop: 16,
     marginBottom: 12,
   },
   desktopRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.lg,
     marginTop: 20,
     marginBottom: 20,
+  },
+  zoneLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  zoneCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  zoneRight: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: spacing.lg,
   },
   searchWrap: {
     width: 260,
@@ -92,9 +120,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: colors.text,
-  },
-  spacer: {
-    flex: 1,
   },
   iconRow: {
     flexDirection: "row",

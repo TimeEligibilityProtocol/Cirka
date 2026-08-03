@@ -7,8 +7,8 @@ export const colors = {
   background: "#F8F4EE", // ciepła kość słoniowa
   surface: "#FFFDFC", // karty i pola — miękka biel
   text: "#211B18", // głębokie espresso
-  primary: "#713F3A", // burgundowo-brązowy — główna akcja, aktywny stan
-  primaryPressed: "#57302D", // ciemny burgundowo-brązowy
+  primary: "#7E231D", // burgund — główna akcja, aktywny stan
+  primaryPressed: "#611B16", // ciemny burgund (stan wciśnięty)
   neutralSurface: "#E9DED2", // jasny piasek
   highlight: "#E7D3CF", // przygaszony różowo-beżowy — delikatny status
   border: "#DED5CC", // ciepły kamień — linie i obramowania

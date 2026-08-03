@@ -29,7 +29,7 @@ const PORTRAIT_BUTTONS = {
   sellYours: { left: "33.2%", top: "55.3%", width: "25.4%", height: "7.7%" },
 } as const;
 
-export function HeroBanner() {
+export function HeroBanner({ onShopNow }: { onShopNow?: () => void }) {
   const { width } = useWindowDimensions();
   const { push } = useStack();
   const sideBySide = width >= 768;
@@ -46,7 +46,7 @@ export function HeroBanner() {
         accessibilityLabel="Pre-loved fashion in the UAE. Great pieces deserve another life. Woman in linen set carrying a coffee and a leather tote on a waterfront promenade."
       />
       <Pressable
-        onPress={() => push("Discover")}
+        onPress={onShopNow ?? (() => push("Discover"))}
         accessibilityLabel="Shop now"
         style={[styles.hitTarget, buttons.shopNow]}
       />

@@ -1,6 +1,6 @@
 import { getRootCategoryId, getSubcategories, ROOT_CATEGORIES } from "@wearto-you/domain";
 import { colors, getFeedBreakpoint, HEART_BUTTON, isDesktopWidth } from "@wearto-you/ui";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { HeroBanner } from "../components/HeroBanner";
 import { HomeHeader } from "../components/HomeHeader";
@@ -22,6 +22,8 @@ export function DiscoverScreen() {
   const [search, setSearch] = useState("");
   const { width } = useWindowDimensions();
   const desktop = isDesktopWidth(width);
+  const scrollRef = useRef<ScrollView>(null);
+  const gridSectionY = useRef(0);
 
   const subcategories = activeCategory === ALL ? [] : getSubcategories(activeCategory);
 
@@ -42,33 +44,37 @@ export function DiscoverScreen() {
   const heartSize = isDesktopWidth(width) ? HEART_BUTTON.desktop : HEART_BUTTON.mobile;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={[styles.content, { width: contentWidth, paddingHorizontal: breakpoint.pagePadding }]}>
         <HomeHeader desktop={desktop} searchValue={search} onSearchChange={setSearch} />
-        <HeroBanner />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pills}>
-          <Pill
-            label="All"
-            icon={AllCategoriesIcon}
-            active={activeCategory === ALL}
-            onPress={() => {
-              setActiveCategory(ALL);
-              setActiveSubcategory(null);
-            }}
-          />
-          {ROOT_CATEGORIES.map((c) => (
+        <HeroBanner
+          onShopNow={() => scrollRef.current?.scrollTo({ y: gridSectionY.current, animated: true })}
+        />
+        <View onLayout={(e) => (gridSectionY.current = e.nativeEvent.layout.y)}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pills}>
             <Pill
-              key={c.id}
-              label={c.labelEn}
-              icon={categoryIcon(c.id)}
-              active={activeCategory === c.id}
+              label="All"
+              icon={AllCategoriesIcon}
+              active={activeCategory === ALL}
               onPress={() => {
-                setActiveCategory(c.id);
+                setActiveCategory(ALL);
                 setActiveSubcategory(null);
               }}
             />
-          ))}
-        </ScrollView>
+            {ROOT_CATEGORIES.map((c) => (
+              <Pill
+                key={c.id}
+                label={c.labelEn}
+                icon={categoryIcon(c.id)}
+                active={activeCategory === c.id}
+                onPress={() => {
+                  setActiveCategory(c.id);
+                  setActiveSubcategory(null);
+                }}
+              />
+            ))}
+          </ScrollView>
+        </View>
         {subcategories.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.subPills}>
             <Pill
