@@ -33,7 +33,7 @@ export function HomeHeader({
   // repeating them here would be a duplicate set of the same destinations.
   if (!desktop) {
     return (
-      <View style={styles.compactRow}>
+      <View style={[styles.compactRow, styles.compactRowLeft]}>
         <Wordmark size={28} />
       </View>
     );
@@ -52,16 +52,15 @@ export function HomeHeader({
     </View>
   );
 
-  // Three equal-width zones (search / logo / actions) so the logo sits
-  // dead-center of the header regardless of how wide the other two are,
-  // rather than just centered in the leftover space next to a
-  // fixed-position logo.
+  // Three equal-width zones (logo / search / actions) so the search bar
+  // sits dead-center of the header regardless of how wide the other two
+  // are, rather than just centered in the leftover space.
   return (
     <View style={styles.desktopRow}>
-      <View style={styles.zoneLeft}>{search}</View>
-      <View style={styles.zoneCenter}>
+      <View style={styles.zoneLeft}>
         <Wordmark size={46} />
       </View>
+      <View style={styles.zoneCenter}>{search}</View>
       <View style={styles.zoneRight}>
         {iconRow}
         <Pressable style={styles.sellButton} onPress={() => push("AddListing")}>
@@ -79,6 +78,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 16,
     marginBottom: 12,
+  },
+  compactRowLeft: {
+    justifyContent: "flex-start",
   },
   desktopRow: {
     flexDirection: "row",
