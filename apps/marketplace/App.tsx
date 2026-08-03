@@ -2,6 +2,7 @@ import { colors, isDesktopWidth, spacing, typography } from "@wearto-you/ui";
 import { StatusBar } from "expo-status-bar";
 import { ComponentType } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { HeartIcon, HomeIcon, PlusIcon, ProfileIcon, SearchIcon } from "./src/components/icons/icons";
 import { StackProvider, useStack } from "./src/nav/stack";
 import { AddListingScreen } from "./src/screens/AddListingScreen";
 import { CheckoutScreen } from "./src/screens/CheckoutScreen";
@@ -51,24 +52,23 @@ const SCREEN_TAB: Record<string, string> = {
 };
 
 const TABS = [
-  { key: "discover", label: "Discover", root: "Discover" },
-  { key: "saved", label: "Saved", root: "Saved" },
-  { key: "add", label: "Add", root: "AddListing" },
-  { key: "messages", label: "Messages", root: "Messages" },
-  { key: "profile", label: "Profile", root: "Profile" },
+  { key: "discover", label: "Home", root: "Discover", Icon: HomeIcon, params: undefined },
+  { key: "search", label: "Search", root: "Discover", Icon: SearchIcon, params: { focusSearch: "1" } },
+  { key: "add", label: "Sell", root: "AddListing", Icon: PlusIcon, params: undefined },
+  { key: "saved", label: "Saved", root: "Saved", Icon: HeartIcon, params: undefined },
+  { key: "profile", label: "Profile", root: "Profile", Icon: ProfileIcon, params: undefined },
 ] as const;
 
-// Checkout is a focused, single-task flow — on desktop it drops the
-// persistent bottom nav, matching standard e-commerce checkout patterns.
-// Stays visible on mobile per spec.
-const HIDE_DESKTOP_NAV_SCREENS = new Set(["Checkout"]);
-
+// Bottom nav is a mobile/tablet pattern only — desktop uses the persistent
+// header (search bar, saved/messages/profile icons, Sell button) instead,
+// per the approved responsive spec ("Desktop: no bottom navigation").
 function AppShell() {
   const { current, reset } = useStack();
   const { width } = useWindowDimensions();
   const Screen = SCREENS[current.name] ?? DiscoverScreen;
   const activeTab = SCREEN_TAB[current.name] ?? "discover";
-  const hideBottomNav = isDesktopWidth(width) && HIDE_DESKTOP_NAV_SCREENS.has(current.name);
+  const activeSubTab = current.name === "Discover" && current.params?.focusSearch === "1" ? "search" : activeTab;
+  const hideBottomNav = isDesktopWidth(width);
 
   return (
     <View style={styles.pageOuter}>
@@ -79,13 +79,24 @@ function AppShell() {
         </View>
         {!hideBottomNav ? (
           <View style={styles.bottomNav}>
-            {TABS.map((tab) => (
-              <Pressable key={tab.key} onPress={() => reset(tab.root)} style={styles.tabButton}>
-                <Text style={[styles.tabLabel, tab.key === activeTab ? styles.tabLabelActive : undefined]}>
-                  {tab.label}
-                </Text>
-              </Pressable>
-            ))}
+            {TABS.map((tab) => {
+              const active = tab.key === activeSubTab;
+              const isSell = tab.key === "add";
+              return (
+                <Pressable
+                  key={tab.key}
+                  onPress={() => reset(tab.root, tab.params)}
+                  style={isSell ? styles.sellTabButton : styles.tabButton}
+                >
+                  <View style={isSell ? styles.sellButtonCircle : undefined}>
+                    <tab.Icon size={isSell ? 22 : 20} color={isSell ? colors.surface : active ? colors.primary : colors.text} />
+                  </View>
+                  {!isSell ? (
+                    <Text style={[styles.tabLabel, active ? styles.tabLabelActive : undefined]}>{tab.label}</Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
         ) : null}
       </View>
@@ -127,10 +138,30 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 3,
     minHeight: 44,
   },
+  sellTabButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sellButtonCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -20,
+    shadowColor: colors.primaryPressed,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: typography.weights.bodyMedium as "500",
     color: colors.text,
   },

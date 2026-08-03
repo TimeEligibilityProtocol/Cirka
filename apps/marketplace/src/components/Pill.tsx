@@ -1,9 +1,22 @@
 import { colors, radii, typography } from "@wearto-you/ui";
+import { ComponentType } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
+import { IconProps } from "./icons/icons";
 
-export function Pill({ label, active, onPress }: { label: string; active?: boolean; onPress?: () => void }) {
+export function Pill({
+  label,
+  active,
+  onPress,
+  icon: Icon,
+}: {
+  label: string;
+  active?: boolean;
+  onPress?: () => void;
+  icon?: ComponentType<IconProps>;
+}) {
   return (
     <Pressable onPress={onPress} style={[styles.pill, active ? styles.pillActive : undefined]}>
+      {Icon ? <Icon size={15} color={active ? colors.surface : colors.text} /> : null}
       <Text style={[styles.label, active ? styles.labelActive : undefined]}>{label}</Text>
     </Pressable>
   );
@@ -11,6 +24,9 @@ export function Pill({ label, active, onPress }: { label: string; active?: boole
 
 const styles = StyleSheet.create({
   pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: radii.pill,

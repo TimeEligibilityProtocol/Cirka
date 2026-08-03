@@ -3,6 +3,7 @@ import { colors, typography } from "@wearto-you/ui";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { formatMoney } from "../data/seed";
 import { listingImageAlt, listingImageUrl } from "../state/store";
+import { HeartIcon } from "./icons/icons";
 
 export function ProductCard({
   listing,
@@ -34,7 +35,7 @@ export function ProductCard({
           accessibilityRole="button"
           accessibilityLabel="Save to favorites"
         >
-          <Text style={styles.heartIcon}>♡</Text>
+          <HeartIcon size={heartSize * 0.42} color={colors.text} />
         </View>
         {sold ? (
           <View style={styles.soldBadge}>
@@ -69,10 +70,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,253,252,0.9)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  heartIcon: {
-    fontSize: 15,
-    color: colors.text,
   },
   soldBadge: {
     position: "absolute",

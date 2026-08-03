@@ -1,9 +1,14 @@
 import { getRootCategoryId, getSubcategories, ROOT_CATEGORIES } from "@wearto-you/domain";
-import { colors, getFeedBreakpoint, HEART_BUTTON, isDesktopWidth, typography } from "@wearto-you/ui";
-import { useState } from "react";
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { colors, getFeedBreakpoint, HEART_BUTTON, isDesktopWidth, radii } from "@wearto-you/ui";
+import { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { HeroBanner } from "../components/HeroBanner";
+import { HomeHeader } from "../components/HomeHeader";
 import { ProductCard } from "../components/ProductCard";
 import { Pill } from "../components/Pill";
+import { ValueStrip } from "../components/ValueStrip";
+import { AllCategoriesIcon, SearchIcon } from "../components/icons/icons";
+import { categoryIcon } from "../components/icons/categoryIcons";
 import { useStack } from "../nav/stack";
 import { useStore } from "../state/store";
 
@@ -11,15 +16,24 @@ const ALL = "all";
 
 export function DiscoverScreen() {
   const { listings, loading, loadError } = useStore();
-  const { push } = useStack();
+  const { push, current } = useStack();
   const [activeCategory, setActiveCategory] = useState<string>(ALL);
   const [activeSubcategory, setActiveSubcategory] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { width } = useWindowDimensions();
+  const desktop = isDesktopWidth(width);
+
+  useEffect(() => {
+    if (current.params?.focusSearch === "1") setMobileSearchOpen(true);
+  }, [current.params?.focusSearch]);
 
   const subcategories = activeCategory === ALL ? [] : getSubcategories(activeCategory);
 
   const visible = listings.filter((l) => l.status !== "removed" && l.status !== "hidden");
+  const query = search.trim().toLowerCase();
   const filtered = visible.filter((l) => {
+    if (query && !(l.title.sellerSelectedValue ?? "").toLowerCase().includes(query)) return false;
     if (activeCategory === ALL) return true;
     if (activeSubcategory) return l.categoryId === activeSubcategory;
     return getRootCategoryId(l.categoryId) === activeCategory;
@@ -35,13 +49,25 @@ export function DiscoverScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={[styles.content, { width: contentWidth, paddingHorizontal: breakpoint.pagePadding }]}>
-        <View style={styles.topBar}>
-          <Text style={styles.wordmark}>wearto.you</Text>
-        </View>
-        <Text style={styles.heading}>Discover</Text>
+        <HomeHeader desktop={desktop} searchValue={search} onSearchChange={setSearch} />
+        {!desktop && mobileSearchOpen ? (
+          <View style={styles.mobileSearchWrap}>
+            <SearchIcon size={16} color={colors.text} />
+            <TextInput
+              autoFocus
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search for items, brands or styles…"
+              placeholderTextColor={`${colors.text}88`}
+              style={styles.mobileSearchInput}
+            />
+          </View>
+        ) : null}
+        <HeroBanner />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pills}>
           <Pill
             label="All"
+            icon={AllCategoriesIcon}
             active={activeCategory === ALL}
             onPress={() => {
               setActiveCategory(ALL);
@@ -52,6 +78,7 @@ export function DiscoverScreen() {
             <Pill
               key={c.id}
               label={c.labelEn}
+              icon={categoryIcon(c.id)}
               active={activeCategory === c.id}
               onPress={() => {
                 setActiveCategory(c.id);
@@ -96,6 +123,7 @@ export function DiscoverScreen() {
         ) : filtered.length === 0 ? (
           <Text style={styles.empty}>No items in this category yet.</Text>
         ) : null}
+        <ValueStrip />
       </View>
     </ScrollView>
   );
@@ -113,21 +141,22 @@ const styles = StyleSheet.create({
   content: {
     alignSelf: "center",
   },
-  topBar: {
-    marginBottom: 8,
-    marginTop: 16,
+  mobileSearchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 12,
   },
-  wordmark: {
-    fontSize: 15,
-    fontWeight: typography.weights.logo as "600",
+  mobileSearchInput: {
+    flex: 1,
+    fontSize: 14,
     color: colors.text,
-    letterSpacing: -0.3,
-  },
-  heading: {
-    fontSize: 30,
-    fontWeight: typography.weights.heading as "700",
-    color: colors.text,
-    marginBottom: 8,
   },
   pills: {
     marginBottom: 8,

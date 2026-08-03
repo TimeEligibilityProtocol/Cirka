@@ -1,6 +1,7 @@
 import { colors, spacing, typography } from "@wearto-you/ui";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useStack } from "../nav/stack";
+import { Wordmark } from "./Wordmark";
 
 export function Header({ title, right }: { title?: string; right?: string }) {
   const { canGoBack, pop } = useStack();
@@ -13,7 +14,7 @@ export function Header({ title, right }: { title?: string; right?: string }) {
           </Pressable>
         ) : null}
       </View>
-      <Text style={styles.title}>{title ?? "wearto.you"}</Text>
+      {title ? <Text style={styles.title}>{title}</Text> : <Wordmark size={16} />}
       <View style={[styles.side, styles.sideRight]}>{right ? <Text style={styles.right}>{right}</Text> : null}</View>
     </View>
   );

@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "currency": "AED",
+  "demoOnly": true,
+  "products": [
+    {
+      "id": "demo-dress-001",
+      "title": "Cream Pleated Midi Dress",
+      "category": "dresses",
+      "brand": "Unbranded",
+      "condition": "excellent",
+      "price": 320,
+      "image": "images/web/01-cream-pleated-dress.webp",
+      "masterImage": "images/masters/01-cream-pleated-dress.png",
+      "alt": "Cream pleated midi dress on a wooden hanger"
+    },
+    {
+      "id": "demo-blazer-001",
+      "title": "Camel Tailored Blazer",
+      "category": "clothing",
+      "brand": "Unbranded",
+      "condition": "very_good",
+      "price": 420,
+      "image": "images/web/02-camel-tailored-blazer.webp",
+      "masterImage": "images/masters/02-camel-tailored-blazer.png",
+      "alt": "Camel tailored blazer on a wooden hanger"
+    },
+    {
+      "id": "demo-shoes-001",
+      "title": "Ivory Slingback Heels",
+      "category": "shoes",
+      "brand": "Unbranded",
+      "condition": "excellent",
+      "price": 650,
+      "image": "images/web/03-ivory-slingback-heels.webp",
+      "masterImage": "images/masters/03-ivory-slingback-heels.png",
+      "alt": "Pair of ivory slingback heels with brown toe caps"
+    },
+    {
+      "id": "demo-shoes-002",
+      "title": "Burgundy Leather Loafers",
+      "category": "shoes",
+      "brand": "Unbranded",
+      "condition": "very_good",
+      "price": 540,
+      "image": "images/web/04-burgundy-leather-loafers.webp",
+      "masterImage": "images/masters/04-burgundy-leather-loafers.png",
+      "alt": "Pair of burgundy-brown leather loafers"
+    },
+    {
+      "id": "demo-bag-001",
+      "title": "Caramel Leather Top Handle Bag",
+      "category": "bags",
+      "brand": "Unbranded",
+      "condition": "very_good",
+      "price": 980,
+      "image": "images/web/05-caramel-top-handle-bag.webp",
+      "masterImage": "images/masters/05-caramel-top-handle-bag.png",
+      "alt": "Caramel leather top-handle bag with shoulder strap"
+    },
+    {
+      "id": "demo-bag-002",
+      "title": "Ivory Quilted Shoulder Bag",
+      "category": "bags",
+      "brand": "Unbranded",
+      "condition": "excellent",
+      "price": 1250,
+      "image": "images/web/06-ivory-quilted-shoulder-bag.webp",
+      "masterImage": "images/masters/06-ivory-quilted-shoulder-bag.png",
+      "alt": "Ivory quilted shoulder bag with a warm-gold chain"
+    },
+    {
+      "id": "demo-bag-003",
+      "title": "Burgundy Suede Shoulder Bag",
+      "category": "bags",
+      "brand": "Unbranded",
+      "condition": "very_good",
+      "price": 760,
+      "image": "images/web/07-burgundy-suede-shoulder-bag.webp",
+      "masterImage": "images/masters/07-burgundy-suede-shoulder-bag.png",
+      "alt": "Burgundy-brown suede crescent shoulder bag"
+    },
+    {
+      "id": "demo-top-001",
+      "title": "Ivory Silk-Blend Blouse",
+      "category": "clothing",
+      "brand": "Unbranded",
+      "condition": "excellent",
+      "price": 290,
+      "image": "images/web/08-ivory-silk-blouse.webp",
+      "masterImage": "images/masters/08-ivory-silk-blouse.png",
+      "alt": "Ivory silk-blend blouse on a wooden hanger"
+    }
+  ]
+}

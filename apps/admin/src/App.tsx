@@ -18,7 +18,9 @@ export function App() {
   return (
     <div style={shellStyle}>
       <aside style={sidebarStyle}>
-        <div style={wordmarkStyle}>wearto.you</div>
+        <div style={wordmarkStyle}>
+          wearto<span style={{ color: colors.primary }}>.you</span>
+        </div>
         <div style={subWordmarkStyle}>admin</div>
         <nav style={{ marginTop: 32 }}>
           {NAV.map((item) => (

@@ -4,9 +4,49 @@ import { useEffect, useState } from "react";
 import { Image, ImageStyle, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Header } from "../components/Header";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { AppleIcon, CardIcon, ChevronRightIcon, PickupIcon, TruckIcon } from "../components/icons/icons";
 import { aed, formatMoney } from "../data/seed";
 import { useStack } from "../nav/stack";
 import { listingImageAlt, listingImageUrl, useStore } from "../state/store";
+
+const DELIVERY_ICONS: Record<DeliveryMethod, typeof TruckIcon> = {
+  courier: TruckIcon,
+  pickup: PickupIcon,
+};
+
+const PAYMENT_ICONS: Record<string, typeof CardIcon> = {
+  Card: CardIcon,
+  "Apple Pay": AppleIcon,
+};
+
+function RadioDot({ active }: { active: boolean }) {
+  return (
+    <View style={[radioStyles.outer, active ? radioStyles.outerActive : undefined]}>
+      {active ? <View style={radioStyles.inner} /> : null}
+    </View>
+  );
+}
+
+const radioStyles = StyleSheet.create({
+  outer: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  outerActive: {
+    borderColor: colors.primary,
+  },
+  inner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+  },
+});
 
 // Layout constants scoped to this screen only — not promoted to shared
 // tokens, per the instruction to fix this screen's layout without
@@ -54,7 +94,6 @@ export function CheckoutScreen() {
 
   const isDesktop = width >= DESKTOP_MIN;
   const isTablet = width >= TABLET_MIN && width < DESKTOP_MIN;
-  const isCompact = !isDesktop && !isTablet;
 
   if (!listing) return null;
 
@@ -111,11 +150,18 @@ export function CheckoutScreen() {
       {DELIVERY_OPTIONS.map((opt) => {
         const fee = computeDeliveryFeeMinor(opt.id, listing.price.amountMinor);
         const active = opt.id === deliveryId;
+        const Icon = DELIVERY_ICONS[opt.id];
         return (
           <Pressable key={opt.id} onPress={() => setDeliveryId(opt.id)} style={[styles.optionRow, active ? styles.optionRowActive : undefined]}>
-            <View style={styles.optionTextCol}>
-              <Text style={styles.optionLabel}>{opt.label}</Text>
-              <Text style={styles.optionDetail}>{opt.detail}</Text>
+            <View style={styles.optionLeft}>
+              <RadioDot active={active} />
+              <View style={styles.optionIconWrap}>
+                <Icon size={18} color={colors.text} />
+              </View>
+              <View style={styles.optionTextCol}>
+                <Text style={styles.optionLabel}>{opt.label}</Text>
+                <Text style={styles.optionDetail}>{opt.detail}</Text>
+              </View>
             </View>
             <Text style={styles.optionFee}>{fee === 0 ? "Free" : formatMoney(aed(fee / 100))}</Text>
           </Pressable>
@@ -127,17 +173,24 @@ export function CheckoutScreen() {
   const paymentSection = (
     <View style={styles.card}>
       <Text style={styles.sectionLabel}>Payment method</Text>
-      <ScrollView horizontal={isCompact} showsHorizontalScrollIndicator={false} style={styles.methods}>
-        {methods.map((m) => (
-          <Text
-            key={m}
-            onPress={() => setMethod(m)}
-            style={[styles.method, method === m ? styles.methodActive : undefined]}
-          >
-            {m}
-          </Text>
-        ))}
-      </ScrollView>
+      {methods.map((m) => {
+        const active = method === m;
+        const Icon = PAYMENT_ICONS[m] ?? CardIcon;
+        return (
+          <Pressable key={m} onPress={() => setMethod(m)} style={[styles.optionRow, active ? styles.optionRowActive : undefined]}>
+            <View style={styles.optionLeft}>
+              <RadioDot active={active} />
+              <View style={styles.optionIconWrap}>
+                <Icon size={18} color={colors.text} />
+              </View>
+              <View style={styles.optionTextCol}>
+                <Text style={styles.optionLabel}>{m}</Text>
+              </View>
+            </View>
+            <ChevronRightIcon size={16} color={colors.text} />
+          </Pressable>
+        );
+      })}
 
       <Pressable onPress={() => setShowPaymentInfo((v) => !v)}>
         <Text style={styles.note}>
@@ -313,7 +366,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   optionRowActive: { borderColor: colors.primary, backgroundColor: colors.highlight },
-  optionTextCol: {},
+  optionLeft: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexShrink: 1 },
+  optionIconWrap: { width: 24, alignItems: "center" },
+  optionTextCol: { flexShrink: 1 },
   optionLabel: { fontSize: 14, fontWeight: typography.weights.bodyMedium as "500", color: colors.text },
   optionDetail: { fontSize: 12, color: colors.text, opacity: 0.6, marginTop: 2 },
   optionFee: { fontSize: 14, color: colors.text },
@@ -325,22 +380,7 @@ const styles = StyleSheet.create({
   strong: { fontWeight: typography.weights.price as "600", fontSize: 16 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
 
-  methods: { flexDirection: "row", marginBottom: spacing.sm },
-  method: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 13,
-    color: colors.text,
-    marginRight: 8,
-  },
-  methodActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.highlight,
-  },
-  note: { fontSize: 12, color: colors.text, opacity: 0.7, lineHeight: 18 },
+  note: { fontSize: 12, color: colors.text, opacity: 0.7, lineHeight: 18, marginTop: spacing.sm },
   noteLink: { color: colors.primary, fontWeight: typography.weights.bodyMedium as "500" },
   noteExpanded: { fontSize: 12, color: colors.text, opacity: 0.6, lineHeight: 18, marginTop: spacing.xs },
   errorBanner: {
