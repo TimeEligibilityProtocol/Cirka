@@ -6,6 +6,8 @@ coverage/
 # User-uploaded photos from the Sell flow — dev/test artifacts, not source
 apps/api/public/assets/uploads/*
 !apps/api/public/assets/uploads/.gitkeep
+apps/api/public/assets/cutouts/*
+!apps/api/public/assets/cutouts/.gitkeep
 
 # Expo
 .expo/

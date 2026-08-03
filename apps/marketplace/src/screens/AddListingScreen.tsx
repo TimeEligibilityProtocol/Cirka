@@ -7,7 +7,7 @@ import {
   ROOT_CATEGORIES,
 } from "@wearto-you/domain";
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, ImageStyle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BACKGROUND_PRESET_OPTIONS } from "../assets/backgroundPresets";
 import { Header } from "../components/Header";
@@ -15,6 +15,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { StepperHeader } from "../components/StepperHeader";
 import { ArrowLeftIcon, ArrowRightIcon, CameraIcon, CloseIcon, ImageIcon, PlusIcon } from "../components/icons/icons";
 import { aed, formatMoney } from "../data/seed";
+import { compositeOntoBackground, removeImageBackground } from "../lib/backgroundRemoval";
 import { chooseFromGallery, MAX_PHOTOS, takePhoto } from "../lib/photoPicker";
 import { useStack } from "../nav/stack";
 import { apiClient } from "../config/apiClient";
@@ -40,6 +41,55 @@ export function AddListingScreen() {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
+  // Background removal runs once per main photo (it's the expensive step —
+  // a real segmentation model, not a lookup) and is cached here so it
+  // survives navigating back and forth between steps. Re-compositing onto
+  // a different preset only redraws a canvas, so it's cheap to redo.
+  const [cutoutUri, setCutoutUri] = useState<string | null>(null);
+  const [bgStatus, setBgStatus] = useState<"idle" | "removing" | "ready" | "error">("idle");
+  const [composedUri, setComposedUri] = useState<string | null>(null);
+
+  const mainPhoto = photos[0];
+
+  useEffect(() => {
+    if (!mainPhoto) return;
+    let cancelled = false;
+    setCutoutUri(null);
+    setComposedUri(null);
+    setBgStatus("removing");
+    removeImageBackground(mainPhoto)
+      .then((uri) => {
+        if (!cancelled) {
+          setCutoutUri(uri);
+          setBgStatus("ready");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBgStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainPhoto]);
+
+  useEffect(() => {
+    if (!cutoutUri) return;
+    const preset = BACKGROUND_PRESET_OPTIONS.find((p) => p.id === backgroundPresetId);
+    if (!preset) return;
+    let cancelled = false;
+    compositeOntoBackground(cutoutUri, preset.source)
+      .then((uri) => {
+        if (!cancelled) setComposedUri(uri);
+      })
+      .catch(() => {
+        if (!cancelled) setBgStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cutoutUri, backgroundPresetId]);
+
   const canContinue = step > 0 || photos.length > 0;
   const next = () => {
     if (!canContinue) return;
@@ -52,7 +102,11 @@ export function AddListingScreen() {
     setPublishing(true);
     setPublishError(null);
     try {
-      const uploadedUrls = await apiClient.uploadPhotos(photos);
+      // Publish the background-swapped version of the main photo when it's
+      // ready; the rest (fabric close-ups, labels, defects) stay original —
+      // matching the "proof photos never get their background changed" rule.
+      const photosToUpload = composedUri ? [composedUri, ...photos.slice(1)] : photos;
+      const uploadedUrls = await apiClient.uploadPhotos(photosToUpload);
       const priceNumber = Number(price) || 0;
       const newListing: Listing = {
         id: `l_new_${Date.now()}`,
@@ -95,6 +149,8 @@ export function AddListingScreen() {
         {step === 1 ? (
           <EditStep
             imageUri={photos[0]}
+            composedUri={composedUri}
+            bgStatus={bgStatus}
             backgroundPresetId={backgroundPresetId}
             setBackgroundPresetId={setBackgroundPresetId}
           />
@@ -226,13 +282,18 @@ function PhotoStep({ photos, onPhotosChange }: { photos: string[]; onPhotosChang
 
 function EditStep({
   imageUri,
+  composedUri,
+  bgStatus,
   backgroundPresetId,
   setBackgroundPresetId,
 }: {
   imageUri: string | undefined;
+  composedUri: string | null;
+  bgStatus: "idle" | "removing" | "ready" | "error";
   backgroundPresetId: string;
   setBackgroundPresetId: (id: string) => void;
 }) {
+  const previewUri = composedUri ?? imageUri;
   return (
     <View>
       <Text style={styles.stepHeading}>Choose the background</Text>
@@ -240,8 +301,16 @@ function EditStep({
         wearto.you cuts the item out and places it on one approved background. The item itself is never altered.
       </Text>
       <View style={styles.editPreviewWrap}>
-        <Image source={{ uri: imageUri ?? "" }} style={[styles.fill, { resizeMode: "cover" }]} />
+        <Image source={{ uri: previewUri ?? "" }} style={[styles.fill, { resizeMode: "cover" }]} />
+        {bgStatus === "removing" ? (
+          <View style={styles.bgOverlay}>
+            <Text style={styles.bgOverlayText}>Removing background…{"\n"}first time can take a few seconds.</Text>
+          </View>
+        ) : null}
       </View>
+      {bgStatus === "error" ? (
+        <Text style={styles.bgErrorText}>Couldn't process this photo automatically — showing the original.</Text>
+      ) : null}
       <View style={styles.presetRow}>
         {BACKGROUND_PRESET_OPTIONS.map((preset: BackgroundPreset & { source: number }) => {
           const active = preset.id === backgroundPresetId;
@@ -458,6 +527,31 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     overflow: "hidden",
     backgroundColor: colors.neutralSurface,
+    marginBottom: spacing.md,
+  },
+  bgOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    backgroundColor: "rgba(33,27,24,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  bgOverlayText: {
+    color: colors.surface,
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 19,
+  },
+  bgErrorText: {
+    fontSize: 12,
+    color: colors.primaryPressed,
+    backgroundColor: colors.highlight,
+    borderRadius: radii.card,
+    padding: spacing.sm,
     marginBottom: spacing.md,
   },
   fill: { width: "100%", height: "100%" },

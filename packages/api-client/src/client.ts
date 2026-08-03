@@ -127,4 +127,24 @@ export class ApiClient {
     const { urls } = (await res.json()) as { urls: string[] };
     return urls;
   }
+
+  /**
+   * Runs background removal on a single locally-picked photo (server-side —
+   * see apps/api/src/routes/backgroundRemoval.ts) and returns the
+   * server-hosted URL of the cutout (transparent PNG).
+   */
+  async removeBackground(localUri: string): Promise<string> {
+    const blob = await (await fetch(localUri)).blob();
+    const formData = new FormData();
+    formData.append("photo", blob, "photo.png");
+
+    const token = await this.config.getAuthToken?.();
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${this.config.baseUrl}/api/remove-background`, { method: "POST", body: formData, headers });
+    if (!res.ok) throw new ApiError(res.status, await res.text());
+    const { url } = (await res.json()) as { url: string };
+    return url;
+  }
 }

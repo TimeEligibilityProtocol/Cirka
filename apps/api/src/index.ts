@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "./config/env.js";
 import { buildProviders } from "./providers/factory.js";
+import { backgroundRemovalRouter } from "./routes/backgroundRemoval.js";
 import { healthRouter } from "./routes/health.js";
 import { listingsRouter } from "./routes/listings.js";
 import { ordersRouter } from "./routes/orders.js";
@@ -23,6 +24,7 @@ app.use(healthRouter(providers));
 app.use(listingsRouter());
 app.use(ordersRouter());
 app.use(uploadsRouter());
+app.use(backgroundRemovalRouter());
 
 app.listen(env.port, "0.0.0.0", () => {
   console.log(`wearto.you api listening on :${env.port} (${env.nodeEnv})`);
