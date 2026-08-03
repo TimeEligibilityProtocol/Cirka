@@ -1,7 +1,7 @@
-import { colors, spacing, typography } from "@wearto-you/ui";
+import { colors, isDesktopWidth, spacing, typography } from "@wearto-you/ui";
 import { StatusBar } from "expo-status-bar";
 import { ComponentType } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { StackProvider, useStack } from "./src/nav/stack";
 import { AddListingScreen } from "./src/screens/AddListingScreen";
 import { CheckoutScreen } from "./src/screens/CheckoutScreen";
@@ -58,10 +58,17 @@ const TABS = [
   { key: "profile", label: "Profile", root: "Profile" },
 ] as const;
 
+// Checkout is a focused, single-task flow — on desktop it drops the
+// persistent bottom nav, matching standard e-commerce checkout patterns.
+// Stays visible on mobile per spec.
+const HIDE_DESKTOP_NAV_SCREENS = new Set(["Checkout"]);
+
 function AppShell() {
   const { current, reset } = useStack();
+  const { width } = useWindowDimensions();
   const Screen = SCREENS[current.name] ?? DiscoverScreen;
   const activeTab = SCREEN_TAB[current.name] ?? "discover";
+  const hideBottomNav = isDesktopWidth(width) && HIDE_DESKTOP_NAV_SCREENS.has(current.name);
 
   return (
     <View style={styles.pageOuter}>
@@ -70,15 +77,17 @@ function AppShell() {
         <View style={styles.screenArea}>
           <Screen />
         </View>
-        <View style={styles.bottomNav}>
-          {TABS.map((tab) => (
-            <Pressable key={tab.key} onPress={() => reset(tab.root)} style={styles.tabButton}>
-              <Text style={[styles.tabLabel, tab.key === activeTab ? styles.tabLabelActive : undefined]}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        {!hideBottomNav ? (
+          <View style={styles.bottomNav}>
+            {TABS.map((tab) => (
+              <Pressable key={tab.key} onPress={() => reset(tab.root)} style={styles.tabButton}>
+                <Text style={[styles.tabLabel, tab.key === activeTab ? styles.tabLabelActive : undefined]}>
+                  {tab.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
       </View>
     </View>
   );

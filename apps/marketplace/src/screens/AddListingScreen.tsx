@@ -135,17 +135,17 @@ function EditStep({
       <Text style={styles.stepSub}>
         wearto.you cuts the item out and places it on one approved background. The item itself is never altered.
       </Text>
-      <Image source={CAPTURED_PRODUCT.source} style={styles.editPreview} resizeMode="cover" />
+      <View style={styles.editPreviewWrap}>
+        <Image source={CAPTURED_PRODUCT.source} style={[styles.fill, { resizeMode: "cover" }]} />
+      </View>
       <View style={styles.presetRow}>
         {BACKGROUND_PRESET_OPTIONS.map((preset: BackgroundPreset & { source: number }) => {
           const active = preset.id === backgroundPresetId;
           return (
             <Pressable key={preset.id} onPress={() => setBackgroundPresetId(preset.id)} style={styles.presetTile}>
-              <Image
-                source={preset.source}
-                style={[styles.presetSwatch, active ? styles.presetSwatchActive : undefined]}
-                resizeMode="cover"
-              />
+              <View style={[styles.presetSwatchWrap, active ? styles.presetSwatchActive : undefined]}>
+                <Image source={preset.source} style={[styles.fill, { resizeMode: "cover" }]} />
+              </View>
             </Pressable>
           );
         })}
@@ -288,19 +288,22 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
   },
   photoPlus: { fontSize: 28, color: colors.text, opacity: 0.4 },
-  editPreview: {
+  editPreviewWrap: {
     width: "100%",
     aspectRatio: 0.8,
     borderRadius: radii.card,
+    overflow: "hidden",
     backgroundColor: colors.neutralSurface,
     marginBottom: spacing.md,
   },
+  fill: { width: "100%", height: "100%" },
   presetRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   presetTile: { flex: 1 },
-  presetSwatch: {
+  presetSwatchWrap: {
     width: "100%",
     aspectRatio: 1,
     borderRadius: radii.card / 2,
+    overflow: "hidden",
     borderWidth: 2,
     borderColor: "transparent",
   },
