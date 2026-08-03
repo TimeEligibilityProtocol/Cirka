@@ -5,36 +5,28 @@ import { useStack } from "../nav/stack";
 
 const LANDSCAPE_URL = apiClient.resolveAssetUrl("/assets/hero/hero-landscape.webp");
 const PORTRAIT_URL = apiClient.resolveAssetUrl("/assets/hero/hero-portrait.webp");
-// Deliberately WIDER than the source image's own ratio (1708:921 = 1.85).
-// The container is full page width (see `wrap`), and the source image is
-// tall enough that "full width, uncropped" makes it dominate the whole
-// viewport on a wide monitor. This ratio (2.4) tells resizeMode "cover"
-// to crop — but only the empty sky/ground margins above and below the
-// text and buttons, never the content itself. Verified safe: the baked
-// content spans y 17%-79.4% of the source image; at 2.4 the visible
-// window is the center 77% (y ~11.5%-88.5%), which fully contains it
-// with margin to spare on both sides.
-const LANDSCAPE_ASPECT_RATIO = 2.4;
-// Cropped below the tote bag to remove the lower legs/feet — the full
-// head-to-sandals portrait made the mobile hero too tall.
-const PORTRAIT_ASPECT_RATIO = 1122 / 1009;
+// v2 images were generated pre-composed at these exact ratios (2400x1000
+// and 1080x968) — unlike the v1 assets, no independent crop ratio is
+// needed here; the container just matches the file's own dimensions, so
+// resizeMode "cover" never has to trim anything.
+const LANDSCAPE_ASPECT_RATIO = 2400 / 1000;
+const PORTRAIT_ASPECT_RATIO = 1080 / 968;
 
 // The approved hero images have their headline and buttons baked in as
 // artwork — nothing is rendered on top except two invisible tap targets,
 // positioned as percentages of the image's own box (so they track
 // correctly no matter what size the image renders at). Coordinates were
 // measured directly from the source files' button-fill pixels, not
-// eyeballed, and are only valid for these exact two images at these
-// exact display aspect ratios — if either changes, these must be
-// re-measured (see scripts used in dev: PIL + connected-components on
-// the button fill color).
+// eyeballed, and are only valid for these exact two images — if the
+// artwork changes, these must be re-measured (see scripts used in dev:
+// PIL + connected-components on the button fill color).
 const LANDSCAPE_BUTTONS = {
-  shopNow: { left: "6.3%", top: "78.2%", width: "15.4%", height: "9.9%" },
-  sellYours: { left: "23.2%", top: "78.2%", width: "15.6%", height: "9.9%" },
+  shopNow: { left: "6.0%", top: "78.5%", width: "14.8%", height: "9.2%" },
+  sellYours: { left: "21.8%", top: "78.5%", width: "15.0%", height: "9.1%" },
 } as const;
 const PORTRAIT_BUTTONS = {
-  shopNow: { left: "6.8%", top: "60.2%", width: "19.4%", height: "6.3%" },
-  sellYours: { left: "28.2%", top: "60.2%", width: "19.6%", height: "6.3%" },
+  shopNow: { left: "6.7%", top: "55.3%", width: "25.0%", height: "7.8%" },
+  sellYours: { left: "33.2%", top: "55.3%", width: "25.4%", height: "7.7%" },
 } as const;
 
 export function HeroBanner() {
