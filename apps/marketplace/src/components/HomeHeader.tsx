@@ -40,17 +40,18 @@ export function HomeHeader({
 
   return (
     <View style={styles.desktopRow}>
-      <Wordmark size={17} />
+      <Wordmark size={30} />
       <View style={styles.searchWrap}>
-        <SearchIcon size={17} color={colors.text} />
+        <SearchIcon size={16} color={colors.text} />
         <TextInput
           value={searchValue}
           onChangeText={onSearchChange}
-          placeholder="Search for items, brands or styles…"
+          placeholder="Search…"
           placeholderTextColor={`${colors.text}88`}
           style={[styles.searchInput, { outlineStyle: "none" }] as never}
         />
       </View>
+      <View style={styles.spacer} />
       {iconRow}
       <Pressable style={styles.sellButton} onPress={() => push("AddListing")}>
         <Text style={styles.sellButtonLabel}>Sell</Text>
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   searchWrap: {
-    flex: 1,
+    width: 260,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -83,13 +84,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
     color: colors.text,
+  },
+  spacer: {
+    flex: 1,
   },
   iconRow: {
     flexDirection: "row",
