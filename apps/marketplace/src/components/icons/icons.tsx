@@ -252,6 +252,59 @@ export function AllCategoriesIcon({ size, color = "currentColor", strokeWidth = 
   );
 }
 
+export function CameraIcon({ size, color = "currentColor", strokeWidth = DEFAULT_STROKE }: IconProps) {
+  const s = base(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3.5 8.5c0-.8.7-1.5 1.5-1.5h2l1-1.8c.3-.5.8-.7 1.3-.7h3.4c.5 0 1 .2 1.3.7l1 1.8h2c.8 0 1.5.7 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18V8.5Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+      />
+      <Circle cx="12" cy="13" r="3.2" stroke={color} strokeWidth={strokeWidth} />
+    </Svg>
+  );
+}
+
+export function ImageIcon({ size, color = "currentColor", strokeWidth = DEFAULT_STROKE }: IconProps) {
+  const s = base(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Rect x="3" y="4.5" width="18" height="15" rx="1.8" stroke={color} strokeWidth={strokeWidth} />
+      <Circle cx="8.5" cy="9.5" r="1.6" stroke={color} strokeWidth={strokeWidth} />
+      <Path d="M3.8 16.5 8.5 12l3 2.8 3.2-3.5 5.3 5.2" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function CloseIcon({ size, color = "currentColor", strokeWidth = DEFAULT_STROKE }: IconProps) {
+  const s = base(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+export function ArrowLeftIcon({ size, color = "currentColor", strokeWidth = DEFAULT_STROKE }: IconProps) {
+  const s = base(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M15 5.5 8.5 12l6.5 6.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function ArrowRightIcon({ size, color = "currentColor", strokeWidth = DEFAULT_STROKE }: IconProps) {
+  const s = base(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 5.5 15.5 12 9 18.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function ChevronRightIcon({ size, color = "currentColor", strokeWidth = DEFAULT_STROKE }: IconProps) {
   const s = base(size);
   return (

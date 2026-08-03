@@ -46,6 +46,11 @@ export function ProductCard({
       <Text numberOfLines={1} style={styles.title}>
         {listing.title.sellerSelectedValue}
       </Text>
+      <Text numberOfLines={1} style={styles.meta}>
+        {[listing.brand.sellerSelectedValue, listing.size.sellerSelectedValue, listing.condition.sellerSelectedValue]
+          .filter(Boolean)
+          .join(" · ")}
+      </Text>
       <Text style={styles.price}>{formatMoney(listing.price)}</Text>
     </Pressable>
   );
@@ -88,10 +93,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 13,
     color: colors.text,
+    fontWeight: typography.weights.bodyMedium as "500",
+  },
+  meta: {
+    fontSize: 11,
+    color: colors.text,
+    opacity: 0.55,
+    marginTop: 1,
   },
   price: {
-    fontSize: 14,
-    fontWeight: typography.weights.price as "600",
-    color: colors.text,
+    fontSize: 15,
+    fontWeight: typography.weights.heading as "700",
+    color: colors.primary,
+    marginTop: 3,
   },
 });

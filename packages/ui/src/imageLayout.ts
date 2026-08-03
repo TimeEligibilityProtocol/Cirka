@@ -34,7 +34,7 @@ export const FEED_BREAKPOINTS: FeedBreakpoint[] = [
   { id: "mobile-large", minWidth: 480, maxWidth: 767, columns: 2, pagePadding: 16, columnGap: 16, rowGap: 24, imageRadius: 12 },
   { id: "tablet", minWidth: 768, maxWidth: 1023, columns: 3, pagePadding: 24, columnGap: 20, rowGap: 28, imageRadius: 12 },
   { id: "desktop", minWidth: 1024, maxWidth: 1439, columns: 4, pagePadding: 32, columnGap: 24, rowGap: 32, imageRadius: 12 },
-  { id: "desktop-large", minWidth: 1440, maxWidth: null, columns: 4, pagePadding: 48, columnGap: 24, rowGap: 32, imageRadius: 12, contentMaxWidth: 1440 },
+  { id: "desktop-large", minWidth: 1440, maxWidth: null, columns: 5, pagePadding: 40, columnGap: 20, rowGap: 32, imageRadius: 12, contentMaxWidth: 1440 },
 ];
 
 export function getFeedBreakpoint(viewportWidth: number): FeedBreakpoint {

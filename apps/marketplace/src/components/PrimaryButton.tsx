@@ -5,20 +5,24 @@ export function PrimaryButton({
   label,
   onPress,
   variant = "primary",
+  disabled,
   style,
 }: {
   label: string;
   onPress: () => void;
   variant?: "primary" | "secondary";
+  disabled?: boolean;
   style?: ViewStyle;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.base,
         variant === "primary" ? styles.primary : styles.secondary,
         pressed ? styles.pressed : undefined,
+        disabled ? styles.disabled : undefined,
         style,
       ]}
     >
@@ -45,6 +49,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  disabled: {
+    opacity: 0.4,
   },
   labelPrimary: {
     color: colors.surface,

@@ -4,17 +4,24 @@ import { apiClient } from "../config/apiClient";
 import { useStack } from "../nav/stack";
 
 const HERO_IMAGE_URL = apiClient.resolveAssetUrl("/assets/hero/hero.webp");
-const DESKTOP_ASPECT_RATIO = 16 / 7;
-const MOBILE_ASPECT_RATIO = 4 / 5;
+
+// Fixed pixel heights, not aspect-ratio-driven — the hero is a compact
+// homepage banner, not a full-viewport campaign image. Product cards must
+// already be visible in the first viewport on a standard desktop screen.
+const DESKTOP_HEIGHT = 340;
+const TABLET_HEIGHT = 280;
+const MOBILE_HEIGHT = 240;
 
 export function HeroBanner() {
   const { width } = useWindowDimensions();
   const { push } = useStack();
   const desktop = isDesktopWidth(width);
+  const tablet = !desktop && width >= 768;
+  const height = desktop ? DESKTOP_HEIGHT : tablet ? TABLET_HEIGHT : MOBILE_HEIGHT;
 
   return (
     <View style={[styles.wrap, { borderRadius: desktop ? radii.card : radii.cardMin }]}>
-      <View style={[styles.imageWrap, { aspectRatio: desktop ? DESKTOP_ASPECT_RATIO : MOBILE_ASPECT_RATIO }]}>
+      <View style={[styles.imageWrap, { height }]}>
         <Image
           source={{ uri: HERO_IMAGE_URL }}
           style={
@@ -72,47 +79,47 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 40,
-    maxWidth: 420,
+    maxWidth: 380,
   },
   copyMobile: {
-    left: 20,
-    right: 20,
-    bottom: 20,
+    left: 16,
+    right: 16,
+    bottom: 16,
   },
   eyebrow: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: typography.weights.button as "600",
     color: colors.surface,
     letterSpacing: 1.2,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   eyebrowDesktop: {
     color: colors.text,
   },
   headline: {
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: typography.weights.heading as "700",
     color: colors.surface,
-    marginBottom: 16,
-    lineHeight: 28,
+    marginBottom: 12,
+    lineHeight: 24,
   },
   headlineDesktop: {
-    fontSize: 34,
-    lineHeight: 42,
+    fontSize: 27,
+    lineHeight: 33,
     color: colors.text,
-    maxWidth: 380,
+    maxWidth: 340,
   },
   ctaRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
   },
   ctaPrimary: {
     backgroundColor: colors.primary,
     color: colors.surface,
     fontWeight: typography.weights.button as "600",
-    fontSize: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    fontSize: 13,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: radii.pill,
     overflow: "hidden",
   },
@@ -120,9 +127,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     color: colors.text,
     fontWeight: typography.weights.button as "600",
-    fontSize: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    fontSize: 13,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,

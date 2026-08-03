@@ -104,4 +104,27 @@ export class ApiClient {
     });
     return order;
   }
+
+  /**
+   * Uploads locally-picked photos (camera or gallery — blob:/data: URIs on
+   * web, file:// URIs on native) and returns their server-hosted URLs. Does
+   * not go through request() because FormData needs the browser/RN runtime
+   * to set its own multipart Content-Type boundary, not application/json.
+   */
+  async uploadPhotos(localUris: string[]): Promise<string[]> {
+    const formData = new FormData();
+    for (let i = 0; i < localUris.length; i++) {
+      const blob = await (await fetch(localUris[i])).blob();
+      const ext = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : "jpg";
+      formData.append("photos", blob, `photo-${i}.${ext}`);
+    }
+    const token = await this.config.getAuthToken?.();
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${this.config.baseUrl}/api/uploads`, { method: "POST", body: formData, headers });
+    if (!res.ok) throw new ApiError(res.status, await res.text());
+    const { urls } = (await res.json()) as { urls: string[] };
+    return urls;
+  }
 }

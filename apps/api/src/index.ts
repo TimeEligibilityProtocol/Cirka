@@ -8,6 +8,7 @@ import { buildProviders } from "./providers/factory.js";
 import { healthRouter } from "./routes/health.js";
 import { listingsRouter } from "./routes/listings.js";
 import { ordersRouter } from "./routes/orders.js";
+import { uploadsRouter } from "./routes/uploads.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +22,7 @@ app.use("/assets", express.static(path.join(__dirname, "..", "public", "assets")
 app.use(healthRouter(providers));
 app.use(listingsRouter());
 app.use(ordersRouter());
+app.use(uploadsRouter());
 
 app.listen(env.port, "0.0.0.0", () => {
   console.log(`wearto.you api listening on :${env.port} (${env.nodeEnv})`);

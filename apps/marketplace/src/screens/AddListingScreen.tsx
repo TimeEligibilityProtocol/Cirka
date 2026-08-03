@@ -8,14 +8,17 @@ import {
 } from "@wearto-you/domain";
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
 import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, ImageStyle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BACKGROUND_PRESET_OPTIONS } from "../assets/backgroundPresets";
 import { Header } from "../components/Header";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { StepperHeader } from "../components/StepperHeader";
+import { ArrowLeftIcon, ArrowRightIcon, CameraIcon, CloseIcon, ImageIcon, PlusIcon } from "../components/icons/icons";
 import { aed, formatMoney } from "../data/seed";
+import { chooseFromGallery, MAX_PHOTOS, takePhoto } from "../lib/photoPicker";
 import { useStack } from "../nav/stack";
-import { listingImageUrl, useStore } from "../state/store";
+import { apiClient } from "../config/apiClient";
+import { useStore } from "../state/store";
 
 const STEPS = ["Photo", "Edit", "Details", "Review"];
 
@@ -27,77 +30,71 @@ const DETECTED = {
 
 export function AddListingScreen() {
   const { reset } = useStack();
-  const { listings, addListing } = useStore();
+  const { addListing } = useStore();
   const [step, setStep] = useState(0);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [price, setPrice] = useState("450");
   const [backgroundPresetId, setBackgroundPresetId] = useState(DEFAULT_BACKGROUND_PRESET_ID);
   const [rootCategoryId, setRootCategoryId] = useState("clothing");
   const [subcategoryId, setSubcategoryId] = useState("clothing-dresses");
   const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
-  // The item the seller "just photographed" for this walkthrough — reuses
-  // a real approved demo photo already served by the API, rather than a
-  // second copy bundled into this app. See docs/product/source-assets.
-  const capturedListing = listings.find((l) => l.id === "demo-dress-001");
-
-  const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  const canContinue = step > 0 || photos.length > 0;
+  const next = () => {
+    if (!canContinue) return;
+    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
   const onPublish = async () => {
-    if (publishing || !capturedListing) return;
+    if (publishing || photos.length === 0) return;
     setPublishing(true);
-    const priceNumber = Number(price) || 0;
-    const newListing: Listing = {
-      id: `l_new_${Date.now()}`,
-      sellerId: "seller_demo",
-      tenantId: "wearto_you",
-      categoryId: subcategoryId,
-      status: "active",
-      title: approvedField(capturedListing.title.sellerSelectedValue ?? "New listing"),
-      description: approvedField("Newly listed via Magic Listing — AI-assisted draft, reviewed and approved by seller."),
-      brand: approvedField("Unbranded"),
-      color: approvedField(DETECTED.color),
-      size: approvedField("M"),
-      material: approvedField(DETECTED.material),
-      condition: approvedField(DETECTED.condition, "Like new."),
-      labelStatus: "available",
-      images: capturedListing.images,
-      measurements: "64 cm (W) × 112 cm (L)",
-      price: aed(priceNumber),
-      negotiable: false,
-      minimumOfferMinor: null,
-      createdAt: new Date(0).toISOString(),
-      lastConfirmedAvailableAt: new Date(0).toISOString(),
-      expiresAt: null,
-    };
+    setPublishError(null);
     try {
+      const uploadedUrls = await apiClient.uploadPhotos(photos);
+      const priceNumber = Number(price) || 0;
+      const newListing: Listing = {
+        id: `l_new_${Date.now()}`,
+        sellerId: "seller_demo",
+        tenantId: "wearto_you",
+        categoryId: subcategoryId,
+        status: "active",
+        title: approvedField("New listing"),
+        description: approvedField("Newly listed via Magic Listing — AI-assisted draft, reviewed and approved by seller."),
+        brand: approvedField("Unbranded"),
+        color: approvedField(DETECTED.color),
+        size: approvedField("M"),
+        material: approvedField(DETECTED.material),
+        condition: approvedField(DETECTED.condition, "Like new."),
+        labelStatus: "available",
+        images: uploadedUrls.map((url, i) => ({ url, alt: `Listing photo ${i + 1}` })),
+        measurements: "64 cm (W) × 112 cm (L)",
+        price: aed(priceNumber),
+        negotiable: false,
+        minimumOfferMinor: null,
+        createdAt: new Date(0).toISOString(),
+        lastConfirmedAvailableAt: new Date(0).toISOString(),
+        expiresAt: null,
+      };
       await addListing(newListing);
       reset("Discover");
+    } catch {
+      setPublishError("Couldn't publish your listing — check your connection and try again.");
     } finally {
       setPublishing(false);
     }
   };
-
-  if (!capturedListing) {
-    return (
-      <View style={styles.container}>
-        <Header title="Magic Listing" />
-        <View style={styles.content}>
-          <Text style={styles.stepSub}>Loading…</Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
       <Header title="Magic Listing" />
       <StepperHeader steps={STEPS} activeIndex={step} />
       <ScrollView contentContainerStyle={styles.content}>
-        {step === 0 ? <PhotoStep imageUri={listingImageUrl(capturedListing)} /> : null}
+        {step === 0 ? <PhotoStep photos={photos} onPhotosChange={setPhotos} /> : null}
         {step === 1 ? (
           <EditStep
-            imageUri={listingImageUrl(capturedListing)}
+            imageUri={photos[0]}
             backgroundPresetId={backgroundPresetId}
             setBackgroundPresetId={setBackgroundPresetId}
           />
@@ -111,12 +108,14 @@ export function AddListingScreen() {
           />
         ) : null}
         {step === 3 ? <ReviewStep price={price} setPrice={setPrice} /> : null}
+        {publishError ? <Text style={styles.publishError}>{publishError}</Text> : null}
       </ScrollView>
       <View style={styles.footer}>
         {step > 0 ? <PrimaryButton label="Back" variant="secondary" onPress={back} style={styles.backBtn} /> : null}
         <PrimaryButton
           label={step === STEPS.length - 1 ? (publishing ? "Publishing…" : "Publish") : "Continue"}
           onPress={step === STEPS.length - 1 ? onPublish : next}
+          disabled={step === STEPS.length - 1 ? publishing : !canContinue}
           style={styles.continueBtn}
         />
       </View>
@@ -124,22 +123,103 @@ export function AddListingScreen() {
   );
 }
 
-function PhotoStep({ imageUri }: { imageUri: string }) {
+function PhotoStep({ photos, onPhotosChange }: { photos: string[]; onPhotosChange: (photos: string[]) => void }) {
+  const [busy, setBusy] = useState(false);
+
+  const addPhotos = async (picker: () => Promise<string[]>) => {
+    if (busy || photos.length >= MAX_PHOTOS) return;
+    setBusy(true);
+    try {
+      const picked = await picker();
+      if (picked.length > 0) onPhotosChange([...photos, ...picked].slice(0, MAX_PHOTOS));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeAt = (index: number) => onPhotosChange(photos.filter((_, i) => i !== index));
+
+  const swap = (a: number, b: number) => {
+    const next = [...photos];
+    [next[a], next[b]] = [next[b], next[a]];
+    onPhotosChange(next);
+  };
+
+  if (photos.length === 0) {
+    return (
+      <View>
+        <Text style={styles.stepHeading}>Photograph the item</Text>
+        <Text style={styles.stepSub}>Front, back, fabric close-up, label — follow the category guide.</Text>
+        <View style={styles.pickerRow}>
+          <Pressable style={styles.pickerButton} onPress={() => addPhotos(takePhoto)} disabled={busy}>
+            <CameraIcon size={26} color={colors.primary} />
+            <Text style={styles.pickerButtonLabel}>Take a photo</Text>
+          </Pressable>
+          <Pressable style={styles.pickerButton} onPress={() => addPhotos(() => chooseFromGallery(MAX_PHOTOS))} disabled={busy}>
+            <ImageIcon size={26} color={colors.primary} />
+            <Text style={styles.pickerButtonLabel}>Choose from gallery</Text>
+          </Pressable>
+        </View>
+        {busy ? <Text style={styles.stepSub}>Opening…</Text> : null}
+      </View>
+    );
+  }
+
   return (
     <View>
-      <Text style={styles.stepHeading}>Photograph the item</Text>
-      <Text style={styles.stepSub}>Front, back, fabric close-up, label — follow the category guide.</Text>
-      <View style={styles.photoGrid}>
-        <Image source={{ uri: imageUri }} style={[styles.photoTile, { resizeMode: "cover" }]} />
-        <View style={[styles.photoTile, styles.photoTilePlaceholder]}>
-          <Text style={styles.photoPlus}>+</Text>
-        </View>
+      <View style={styles.photoStepHeader}>
+        <Text style={styles.stepHeading}>Your photos</Text>
+        <Text style={styles.photoCount}>
+          {photos.length}/{MAX_PHOTOS}
+        </Text>
       </View>
-      <Text style={styles.modeNote}>
-        Live background — the preview shows the approved background before you shoot. If the preview is slow,
-        flickers, or the phone can't keep up, wearto.you switches to "take a plain photo, we'll clean it up
-        automatically" on its own. Either way, the published photo looks the same.
-      </Text>
+      <Text style={styles.stepSub}>The first photo is your main photo — it's what buyers see first in the feed.</Text>
+      <View style={styles.photoGrid}>
+        {photos.map((uri, index) => (
+          <View key={uri} style={styles.photoTileWrap}>
+            <Image source={{ uri }} style={[styles.photoTile, { resizeMode: "cover" }] as ImageStyle[]} />
+            {index === 0 ? (
+              <View style={styles.mainBadge}>
+                <Text style={styles.mainBadgeText}>Main</Text>
+              </View>
+            ) : null}
+            <Pressable style={styles.removeBtn} onPress={() => removeAt(index)} accessibilityLabel="Remove photo" hitSlop={6}>
+              <CloseIcon size={12} color={colors.surface} />
+            </Pressable>
+            <View style={styles.reorderRow}>
+              <Pressable
+                disabled={index === 0}
+                onPress={() => swap(index, index - 1)}
+                style={styles.reorderBtn}
+                accessibilityLabel="Move photo earlier"
+              >
+                <ArrowLeftIcon size={13} color={index === 0 ? colors.border : colors.text} />
+              </Pressable>
+              <Pressable
+                disabled={index === photos.length - 1}
+                onPress={() => swap(index, index + 1)}
+                style={styles.reorderBtn}
+                accessibilityLabel="Move photo later"
+              >
+                <ArrowRightIcon size={13} color={index === photos.length - 1 ? colors.border : colors.text} />
+              </Pressable>
+            </View>
+          </View>
+        ))}
+        {photos.length < MAX_PHOTOS ? (
+          <Pressable
+            style={[styles.photoTile, styles.addTile]}
+            onPress={() => addPhotos(() => chooseFromGallery(MAX_PHOTOS - photos.length))}
+            disabled={busy}
+          >
+            <PlusIcon size={20} color={colors.text} />
+            <Text style={styles.addTileLabel}>Add photo</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      <Pressable onPress={() => addPhotos(takePhoto)} disabled={busy || photos.length >= MAX_PHOTOS}>
+        <Text style={styles.addMoreLink}>+ Take another photo</Text>
+      </Pressable>
     </View>
   );
 }
@@ -149,7 +229,7 @@ function EditStep({
   backgroundPresetId,
   setBackgroundPresetId,
 }: {
-  imageUri: string;
+  imageUri: string | undefined;
   backgroundPresetId: string;
   setBackgroundPresetId: (id: string) => void;
 }) {
@@ -160,7 +240,7 @@ function EditStep({
         wearto.you cuts the item out and places it on one approved background. The item itself is never altered.
       </Text>
       <View style={styles.editPreviewWrap}>
-        <Image source={{ uri: imageUri }} style={[styles.fill, { resizeMode: "cover" }]} />
+        <Image source={{ uri: imageUri ?? "" }} style={[styles.fill, { resizeMode: "cover" }]} />
       </View>
       <View style={styles.presetRow}>
         {BACKGROUND_PRESET_OPTIONS.map((preset: BackgroundPreset & { source: number }) => {
@@ -293,25 +373,85 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, paddingBottom: spacing.xl },
   stepHeading: { fontSize: 20, fontWeight: typography.weights.heading as "700", color: colors.text, marginBottom: spacing.xs },
   stepSub: { fontSize: 13, color: colors.text, opacity: 0.65, lineHeight: 19, marginBottom: spacing.md },
-  modeNote: {
-    fontSize: 12,
-    color: colors.text,
-    opacity: 0.6,
-    lineHeight: 18,
+  publishError: {
+    fontSize: 13,
+    color: colors.primaryPressed,
     backgroundColor: colors.highlight,
     borderRadius: radii.card,
     padding: spacing.sm,
+    marginTop: spacing.sm,
   },
-  photoGrid: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
-  photoTile: { width: 120, height: 150, borderRadius: radii.card, backgroundColor: colors.neutralSurface },
-  photoTilePlaceholder: {
+  pickerRow: { flexDirection: "row", gap: spacing.sm },
+  pickerButton: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 10,
+    minHeight: 140,
+    borderRadius: radii.card,
     borderWidth: 1,
     borderColor: colors.border,
     borderStyle: "dashed",
+    backgroundColor: colors.surface,
   },
-  photoPlus: { fontSize: 28, color: colors.text, opacity: 0.4 },
+  pickerButtonLabel: {
+    fontSize: 14,
+    fontWeight: typography.weights.bodyMedium as "500",
+    color: colors.text,
+  },
+  photoStepHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.xs },
+  photoCount: { fontSize: 13, color: colors.text, opacity: 0.55 },
+  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
+  photoTile: { width: 104, height: 130, borderRadius: radii.card, backgroundColor: colors.neutralSurface },
+  photoTileWrap: { width: 104 },
+  mainBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  mainBadgeText: { fontSize: 10, fontWeight: typography.weights.bodyMedium as "500", color: colors.surface },
+  removeBtn: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(33,27,24,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reorderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 4,
+  },
+  reorderBtn: {
+    width: 28,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addTile: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    backgroundColor: colors.surface,
+  },
+  addTileLabel: { fontSize: 12, color: colors.text, opacity: 0.7 },
+  addMoreLink: {
+    fontSize: 13,
+    fontWeight: typography.weights.bodyMedium as "500",
+    color: colors.primary,
+    marginBottom: spacing.md,
+  },
   editPreviewWrap: {
     width: "100%",
     aspectRatio: 0.8,

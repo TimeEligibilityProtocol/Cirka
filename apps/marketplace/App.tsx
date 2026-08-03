@@ -2,7 +2,7 @@ import { colors, isDesktopWidth, spacing, typography } from "@wearto-you/ui";
 import { StatusBar } from "expo-status-bar";
 import { ComponentType } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { HeartIcon, HomeIcon, PlusIcon, ProfileIcon, SearchIcon } from "./src/components/icons/icons";
+import { CameraIcon, ChatIcon, HeartIcon, HomeIcon, ProfileIcon } from "./src/components/icons/icons";
 import { StackProvider, useStack } from "./src/nav/stack";
 import { AddListingScreen } from "./src/screens/AddListingScreen";
 import { CheckoutScreen } from "./src/screens/CheckoutScreen";
@@ -52,22 +52,22 @@ const SCREEN_TAB: Record<string, string> = {
 };
 
 const TABS = [
-  { key: "discover", label: "Home", root: "Discover", Icon: HomeIcon, params: undefined },
-  { key: "search", label: "Search", root: "Discover", Icon: SearchIcon, params: { focusSearch: "1" } },
-  { key: "add", label: "Sell", root: "AddListing", Icon: PlusIcon, params: undefined },
-  { key: "saved", label: "Saved", root: "Saved", Icon: HeartIcon, params: undefined },
-  { key: "profile", label: "Profile", root: "Profile", Icon: ProfileIcon, params: undefined },
+  { key: "discover", label: "Discover", root: "Discover", Icon: HomeIcon },
+  { key: "saved", label: "Saved", root: "Saved", Icon: HeartIcon },
+  { key: "add", label: "Sell", root: "AddListing", Icon: CameraIcon },
+  { key: "messages", label: "Messages", root: "Messages", Icon: ChatIcon },
+  { key: "profile", label: "Profile", root: "Profile", Icon: ProfileIcon },
 ] as const;
 
 // Bottom nav is a mobile/tablet pattern only — desktop uses the persistent
 // header (search bar, saved/messages/profile icons, Sell button) instead,
-// per the approved responsive spec ("Desktop: no bottom navigation").
+// per the approved responsive spec ("Desktop: no bottom navigation"). The
+// Sell action itself is never removed on desktop — it stays in the header.
 function AppShell() {
   const { current, reset } = useStack();
   const { width } = useWindowDimensions();
   const Screen = SCREENS[current.name] ?? DiscoverScreen;
   const activeTab = SCREEN_TAB[current.name] ?? "discover";
-  const activeSubTab = current.name === "Discover" && current.params?.focusSearch === "1" ? "search" : activeTab;
   const hideBottomNav = isDesktopWidth(width);
 
   return (
@@ -80,14 +80,10 @@ function AppShell() {
         {!hideBottomNav ? (
           <View style={styles.bottomNav}>
             {TABS.map((tab) => {
-              const active = tab.key === activeSubTab;
+              const active = tab.key === activeTab;
               const isSell = tab.key === "add";
               return (
-                <Pressable
-                  key={tab.key}
-                  onPress={() => reset(tab.root, tab.params)}
-                  style={isSell ? styles.sellTabButton : styles.tabButton}
-                >
+                <Pressable key={tab.key} onPress={() => reset(tab.root)} style={isSell ? styles.sellTabButton : styles.tabButton}>
                   <View style={isSell ? styles.sellButtonCircle : undefined}>
                     <tab.Icon size={isSell ? 22 : 20} color={isSell ? colors.surface : active ? colors.primary : colors.text} />
                   </View>

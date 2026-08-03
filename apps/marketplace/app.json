@@ -10,6 +10,15 @@
     "web": {
       "bundler": "metro",
       "output": "single"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "wearto.you needs access to your photos so you can add them to a listing.",
+          "cameraPermission": "wearto.you needs access to your camera so you can photograph the item you're selling."
+        }
+      ]
+    ]
   }
 }
