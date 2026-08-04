@@ -1,0 +1,6 @@
+[build]
+  command = "npm install && npm run build:packages && npm run build:web --workspace apps/marketplace"
+  publish = "apps/marketplace/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
