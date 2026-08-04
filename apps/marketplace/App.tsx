@@ -8,12 +8,14 @@ import { AddListingScreen } from "./src/screens/AddListingScreen";
 import { CheckoutScreen } from "./src/screens/CheckoutScreen";
 import { ClaimDetailScreen } from "./src/screens/ClaimDetailScreen";
 import { DiscoverScreen } from "./src/screens/DiscoverScreen";
+import { LoginScreen } from "./src/screens/LoginScreen";
 import { OrderStatusScreen } from "./src/screens/OrderStatusScreen";
 import { PayoutClaimScreen } from "./src/screens/PayoutClaimScreen";
 import { PlaceholderScreen } from "./src/screens/PlaceholderScreen";
 import { ProductDetailScreen } from "./src/screens/ProductDetailScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { QRHandoffScreen } from "./src/screens/QRHandoffScreen";
+import { AuthProvider } from "./src/state/auth";
 import { StoreProvider } from "./src/state/store";
 
 function SavedScreen() {
@@ -32,6 +34,7 @@ const SCREENS: Record<string, ComponentType> = {
   PayoutClaim: PayoutClaimScreen,
   ClaimDetail: ClaimDetailScreen,
   AddListing: AddListingScreen,
+  Login: LoginScreen,
   Saved: SavedScreen,
   Messages: MessagesScreen,
   Profile: ProfileScreen,
@@ -46,6 +49,7 @@ const SCREEN_TAB: Record<string, string> = {
   PayoutClaim: "discover",
   ClaimDetail: "discover",
   AddListing: "add",
+  Login: "add",
   Saved: "saved",
   Messages: "messages",
   Profile: "profile",
@@ -102,11 +106,13 @@ function AppShell() {
 
 export default function App() {
   return (
-    <StoreProvider>
-      <StackProvider initial="Discover">
-        <AppShell />
-      </StackProvider>
-    </StoreProvider>
+    <AuthProvider>
+      <StoreProvider>
+        <StackProvider initial="Discover">
+          <AppShell />
+        </StackProvider>
+      </StoreProvider>
+    </AuthProvider>
   );
 }
 

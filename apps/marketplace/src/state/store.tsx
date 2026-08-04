@@ -12,6 +12,7 @@ interface AppState {
 interface AppActions {
   refreshListings: () => Promise<void>;
   addListing: (listing: Listing) => Promise<void>;
+  removeListing: (id: string) => Promise<void>;
   purchase: (listingId: string, deliveryMethod: DeliveryMethod) => Promise<{ order: Order; listing: Listing }>;
   confirmPickup: (orderId: string) => Promise<Order>;
   sendClaim: (orderId: string) => Promise<Order>;
@@ -73,6 +74,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addListing: async (listing) => {
         const created = await apiClient.createListing(listing);
         upsertListing(created);
+      },
+      removeListing: async (id) => {
+        await apiClient.deleteListing(id);
+        setListings((prev) => prev.filter((l) => l.id !== id));
       },
       purchase: async (listingId, deliveryMethod) => {
         const { order, listing } = await apiClient.purchase(listingId, deliveryMethod);

@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { Image, ImageStyle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BACKGROUND_PRESET_OPTIONS } from "../assets/backgroundPresets";
 import { Header } from "../components/Header";
+import { LoginForm } from "../components/LoginForm";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { StepperHeader } from "../components/StepperHeader";
 import { ArrowLeftIcon, ArrowRightIcon, CameraIcon, CloseIcon, ImageIcon, PlusIcon } from "../components/icons/icons";
@@ -19,6 +20,7 @@ import { compositeOntoBackground, removeImageBackground } from "../lib/backgroun
 import { chooseFromGallery, MAX_PHOTOS, takePhoto } from "../lib/photoPicker";
 import { useStack } from "../nav/stack";
 import { apiClient } from "../config/apiClient";
+import { useAuth } from "../state/auth";
 import { useStore } from "../state/store";
 
 const STEPS = ["Photo", "Edit", "Details", "Review"];
@@ -31,8 +33,15 @@ const DETECTED = {
 
 export function AddListingScreen() {
   const { reset } = useStack();
+  const { user } = useAuth();
   const { addListing } = useStore();
   const [step, setStep] = useState(0);
+  // Photos and background presets can be tried freely, logged out or in —
+  // login is only required once a background has been approved, right
+  // before the listing can actually go live. Kept as an in-place prompt
+  // (not a navigation to a separate screen) so the photo/cutout/composite
+  // state above isn't lost — this screen would otherwise unmount.
+  const [awaitingLogin, setAwaitingLogin] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [price, setPrice] = useState("450");
   const [backgroundPresetId, setBackgroundPresetId] = useState(DEFAULT_BACKGROUND_PRESET_ID);
@@ -48,14 +57,19 @@ export function AddListingScreen() {
   const [cutoutUri, setCutoutUri] = useState<string | null>(null);
   const [bgStatus, setBgStatus] = useState<"idle" | "removing" | "ready" | "error">("idle");
   const [composedUri, setComposedUri] = useState<string | null>(null);
+  const [bgErrorMessage, setBgErrorMessage] = useState<string | null>(null);
 
   const mainPhoto = photos[0];
+  // Bumped to re-trigger removal below after a failure — mainPhoto alone
+  // doesn't change on retry, so it wouldn't re-run the effect on its own.
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     if (!mainPhoto) return;
     let cancelled = false;
     setCutoutUri(null);
     setComposedUri(null);
+    setBgErrorMessage(null);
     setBgStatus("removing");
     removeImageBackground(mainPhoto)
       .then((uri) => {
@@ -64,14 +78,22 @@ export function AddListingScreen() {
           setBgStatus("ready");
         }
       })
-      .catch(() => {
-        if (!cancelled) setBgStatus("error");
+      .catch((err) => {
+        console.error("removeImageBackground failed:", err);
+        if (!cancelled) {
+          setBgErrorMessage(
+            err instanceof Error && err.message.includes("no_product_detected")
+              ? "We couldn't find a product in this photo. Try a clearer, well-lit shot with the item centered against a plain surface."
+              : null
+          );
+          setBgStatus("error");
+        }
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainPhoto]);
+  }, [mainPhoto, retryToken]);
 
   useEffect(() => {
     if (!cutoutUri) return;
@@ -82,7 +104,8 @@ export function AddListingScreen() {
       .then((uri) => {
         if (!cancelled) setComposedUri(uri);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("compositeOntoBackground failed:", err);
         if (!cancelled) setBgStatus("error");
       });
     return () => {
@@ -90,27 +113,48 @@ export function AddListingScreen() {
     };
   }, [cutoutUri, backgroundPresetId]);
 
-  const canContinue = step > 0 || photos.length > 0;
+  // Hard rule: nobody publishes a photo with its original background —
+  // only one of our approved presets. So the Edit step can't be left
+  // (and Publish can't fire) until the swap has actually succeeded, not
+  // just "finished trying" — a failure blocks forward progress too,
+  // with Retry as the only way past it.
+  const backgroundReady = bgStatus === "ready" && composedUri !== null;
+  const editStepBlocked = step === 1 && !backgroundReady;
+  const canContinue = (step > 0 || photos.length > 0) && !editStepBlocked;
   const next = () => {
     if (!canContinue) return;
+    if (step === 1 && !user) {
+      setAwaitingLogin(true);
+      return;
+    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
-  const back = () => setStep((s) => Math.max(s - 1, 0));
+  const back = () => {
+    if (awaitingLogin) {
+      setAwaitingLogin(false);
+      return;
+    }
+    setStep((s) => Math.max(s - 1, 0));
+  };
 
   const onPublish = async () => {
-    if (publishing || photos.length === 0) return;
+    // composedUri is required, not just preferred — a listing can never
+    // go live with its original, unswapped background. user is required
+    // too — the Edit-step gate above is the normal path for both; this
+    // is the backstop.
+    if (publishing || photos.length === 0 || !composedUri || !user) return;
     setPublishing(true);
     setPublishError(null);
     try {
-      // Publish the background-swapped version of the main photo when it's
-      // ready; the rest (fabric close-ups, labels, defects) stay original —
-      // matching the "proof photos never get their background changed" rule.
-      const photosToUpload = composedUri ? [composedUri, ...photos.slice(1)] : photos;
+      // The rest of the photos (fabric close-ups, labels, defects) stay
+      // original — matching the "proof photos never get their background
+      // changed" rule; only the main photo gets the background swap.
+      const photosToUpload = [composedUri, ...photos.slice(1)];
       const uploadedUrls = await apiClient.uploadPhotos(photosToUpload);
       const priceNumber = Number(price) || 0;
       const newListing: Listing = {
         id: `l_new_${Date.now()}`,
-        sellerId: "seller_demo",
+        sellerId: user!.id,
         tenantId: "wearto_you",
         categoryId: subcategoryId,
         status: "active",
@@ -140,6 +184,27 @@ export function AddListingScreen() {
     }
   };
 
+  if (awaitingLogin && !user) {
+    return (
+      <View style={styles.container}>
+        <Header title="Magic Listing" />
+        <ScrollView contentContainerStyle={styles.content}>
+          <LoginForm
+            heading="Log in to publish"
+            sub="Your photo and background are saved — log in or create an account to finish publishing."
+            onSuccess={() => {
+              setAwaitingLogin(false);
+              setStep(2);
+            }}
+          />
+        </ScrollView>
+        <View style={styles.footer}>
+          <PrimaryButton label="Back" variant="secondary" onPress={back} style={styles.backBtn} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Header title="Magic Listing" />
@@ -151,8 +216,10 @@ export function AddListingScreen() {
             imageUri={photos[0]}
             composedUri={composedUri}
             bgStatus={bgStatus}
+            bgErrorMessage={bgErrorMessage}
             backgroundPresetId={backgroundPresetId}
             setBackgroundPresetId={setBackgroundPresetId}
+            onRetry={() => setRetryToken((t) => t + 1)}
           />
         ) : null}
         {step === 2 ? (
@@ -171,7 +238,7 @@ export function AddListingScreen() {
         <PrimaryButton
           label={step === STEPS.length - 1 ? (publishing ? "Publishing…" : "Publish") : "Continue"}
           onPress={step === STEPS.length - 1 ? onPublish : next}
-          disabled={step === STEPS.length - 1 ? publishing : !canContinue}
+          disabled={step === STEPS.length - 1 ? publishing || !composedUri || !user : !canContinue}
           style={styles.continueBtn}
         />
       </View>
@@ -284,24 +351,32 @@ function EditStep({
   imageUri,
   composedUri,
   bgStatus,
+  bgErrorMessage,
   backgroundPresetId,
   setBackgroundPresetId,
+  onRetry,
 }: {
   imageUri: string | undefined;
   composedUri: string | null;
   bgStatus: "idle" | "removing" | "ready" | "error";
+  bgErrorMessage: string | null;
   backgroundPresetId: string;
   setBackgroundPresetId: (id: string) => void;
+  onRetry: () => void;
 }) {
-  const previewUri = composedUri ?? imageUri;
+  // Never preview the original background as a stand-in for the swapped
+  // one — a listing can only publish with one of our presets, so the
+  // preview shouldn't imply otherwise while that hasn't happened yet.
+  const previewUri = composedUri ?? (bgStatus === "removing" ? imageUri : undefined);
   return (
     <View>
       <Text style={styles.stepHeading}>Choose the background</Text>
       <Text style={styles.stepSub}>
         wearto.you cuts the item out and places it on one approved background. The item itself is never altered.
+        Publishing isn't possible until this finishes — listings can't go live with their original background.
       </Text>
       <View style={styles.editPreviewWrap}>
-        <Image source={{ uri: previewUri ?? "" }} style={[styles.fill, { resizeMode: "cover" }]} />
+        {previewUri ? <Image source={{ uri: previewUri }} style={[styles.fill, { resizeMode: "cover" }]} /> : null}
         {bgStatus === "removing" ? (
           <View style={styles.bgOverlay}>
             <Text style={styles.bgOverlayText}>Removing background…{"\n"}first time can take a few seconds.</Text>
@@ -309,7 +384,14 @@ function EditStep({
         ) : null}
       </View>
       {bgStatus === "error" ? (
-        <Text style={styles.bgErrorText}>Couldn't process this photo automatically — showing the original.</Text>
+        <View style={styles.bgErrorBox}>
+          <Text style={styles.bgErrorText}>
+            {bgErrorMessage ?? "Couldn't process this photo automatically. Publishing needs a background swap to succeed first."}
+          </Text>
+          <Pressable onPress={onRetry} style={styles.retryBtn}>
+            <Text style={styles.retryBtnText}>Try again</Text>
+          </Pressable>
+        </View>
       ) : null}
       <View style={styles.presetRow}>
         {BACKGROUND_PRESET_OPTIONS.map((preset: BackgroundPreset & { source: number }) => {
@@ -546,13 +628,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 19,
   },
-  bgErrorText: {
-    fontSize: 12,
-    color: colors.primaryPressed,
+  bgErrorBox: {
     backgroundColor: colors.highlight,
     borderRadius: radii.card,
     padding: spacing.sm,
     marginBottom: spacing.md,
+  },
+  bgErrorText: {
+    fontSize: 12,
+    color: colors.primaryPressed,
+  },
+  retryBtn: { marginTop: spacing.xs, alignSelf: "flex-start" },
+  retryBtnText: {
+    fontSize: 13,
+    color: colors.primaryPressed,
+    fontWeight: typography.weights.bodyMedium as "500",
+    textDecorationLine: "underline",
   },
   fill: { width: "100%", height: "100%" },
   presetRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },

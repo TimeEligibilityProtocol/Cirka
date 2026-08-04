@@ -1,4 +1,4 @@
-import { DeliveryMethod, Listing, Order } from "@wearto-you/domain";
+import { DeliveryMethod, Listing, Order, User } from "@wearto-you/domain";
 
 export interface ApiClientConfig {
   baseUrl: string;
@@ -35,6 +35,7 @@ export class ApiClient {
     if (!res.ok) {
       throw new ApiError(res.status, await res.text());
     }
+    if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
   }
 
@@ -58,6 +59,27 @@ export class ApiClient {
       body: JSON.stringify(listing),
     });
     return created;
+  }
+
+  async deleteListing(id: string): Promise<void> {
+    await this.request(`/api/listings/${id}`, { method: "DELETE" });
+  }
+
+  async register(email: string, password: string, displayName: string): Promise<{ token: string; user: User }> {
+    return this.request("/api/auth/register", { method: "POST", body: JSON.stringify({ email, password, displayName }) });
+  }
+
+  async login(email: string, password: string): Promise<{ token: string; user: User }> {
+    return this.request("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+  }
+
+  async logout(): Promise<void> {
+    await this.request("/api/auth/logout", { method: "POST" });
+  }
+
+  async me(): Promise<User> {
+    const { user } = await this.request<{ user: User }>("/api/auth/me");
+    return user;
   }
 
   async listOrders(): Promise<Order[]> {

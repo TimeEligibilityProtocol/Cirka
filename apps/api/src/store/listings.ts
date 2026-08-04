@@ -27,3 +27,9 @@ export function patchListing(id: string, patch: Partial<Listing>): Listing | und
   listings[index] = { ...listings[index], ...patch };
   return listings[index];
 }
+
+export function deleteListing(id: string): boolean {
+  const before = listings.length;
+  listings = listings.filter((l) => l.id !== id);
+  return listings.length < before;
+}
