@@ -25,6 +25,14 @@ import { useStore } from "../state/store";
 
 const STEPS = ["Photo", "Edit", "Details", "Review"];
 
+// Temporary demo-deployment switch — the background-removal model needs
+// more RAM than this deploy's free hosting tier provides, so on that
+// deployment we let sellers pick photos but stop there instead of
+// advancing into a step that would crash the server. Toggled per-build
+// via EXPO_PUBLIC_DISABLE_MAGIC_LISTING; unset (e.g. local dev) means
+// the full flow runs as normal.
+const MAGIC_LISTING_DISABLED = process.env.EXPO_PUBLIC_DISABLE_MAGIC_LISTING === "true";
+
 const DETECTED = {
   color: "Cream",
   material: "Viscose blend",
@@ -65,7 +73,10 @@ export function AddListingScreen() {
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
-    if (!mainPhoto) return;
+    // On the memory-constrained demo deployment, don't even call the
+    // (crash-prone) removal endpoint — picking a photo alone shouldn't
+    // take the server down before anyone reaches Continue.
+    if (!mainPhoto || MAGIC_LISTING_DISABLED) return;
     let cancelled = false;
     setCutoutUri(null);
     setComposedUri(null);
@@ -120,7 +131,8 @@ export function AddListingScreen() {
   // with Retry as the only way past it.
   const backgroundReady = bgStatus === "ready" && composedUri !== null;
   const editStepBlocked = step === 1 && !backgroundReady;
-  const canContinue = (step > 0 || photos.length > 0) && !editStepBlocked;
+  const photoStepBlocked = step === 0 && MAGIC_LISTING_DISABLED && photos.length > 0;
+  const canContinue = (step > 0 || photos.length > 0) && !editStepBlocked && !photoStepBlocked;
   const next = () => {
     if (!canContinue) return;
     if (step === 1 && !user) {
@@ -210,7 +222,7 @@ export function AddListingScreen() {
       <Header title="Magic Listing" />
       <StepperHeader steps={STEPS} activeIndex={step} />
       <ScrollView contentContainerStyle={styles.content}>
-        {step === 0 ? <PhotoStep photos={photos} onPhotosChange={setPhotos} /> : null}
+        {step === 0 ? <PhotoStep photos={photos} onPhotosChange={setPhotos} comingSoon={photoStepBlocked} /> : null}
         {step === 1 ? (
           <EditStep
             imageUri={photos[0]}
@@ -246,7 +258,15 @@ export function AddListingScreen() {
   );
 }
 
-function PhotoStep({ photos, onPhotosChange }: { photos: string[]; onPhotosChange: (photos: string[]) => void }) {
+function PhotoStep({
+  photos,
+  onPhotosChange,
+  comingSoon,
+}: {
+  photos: string[];
+  onPhotosChange: (photos: string[]) => void;
+  comingSoon: boolean;
+}) {
   const [busy, setBusy] = useState(false);
 
   const addPhotos = async (picker: () => Promise<string[]>) => {
@@ -343,6 +363,14 @@ function PhotoStep({ photos, onPhotosChange }: { photos: string[]; onPhotosChang
       <Pressable onPress={() => addPhotos(takePhoto)} disabled={busy || photos.length >= MAX_PHOTOS}>
         <Text style={styles.addMoreLink}>+ Take another photo</Text>
       </Pressable>
+      {comingSoon ? (
+        <View style={styles.comingSoonBox}>
+          <Text style={styles.comingSoonText}>
+            Background removal and publishing are coming soon on this preview — check back shortly, or ask for a live
+            demo.
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -633,6 +661,17 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     padding: spacing.sm,
     marginBottom: spacing.md,
+  },
+  comingSoonBox: {
+    backgroundColor: colors.highlight,
+    borderRadius: radii.card,
+    padding: spacing.sm,
+    marginTop: spacing.md,
+  },
+  comingSoonText: {
+    fontSize: 12,
+    color: colors.primaryPressed,
+    lineHeight: 17,
   },
   bgErrorText: {
     fontSize: 12,
