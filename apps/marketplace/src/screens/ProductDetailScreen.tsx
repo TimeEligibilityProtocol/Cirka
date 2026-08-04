@@ -1,7 +1,9 @@
 import { getCategory } from "@wearto-you/domain";
 import { colors, IMAGE_CONTAINER_BACKGROUND, isDesktopWidth, PRODUCT_DETAIL_LAYOUT, typography } from "@wearto-you/ui";
-import { Image, ImageStyle, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useState } from "react";
+import { Image, ImageStyle, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Card, InfoRow } from "../components/InfoRow";
+import { ImageZoomModal } from "../components/ImageZoomModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Header } from "../components/Header";
 import { formatMoney } from "../data/seed";
@@ -16,6 +18,7 @@ export function ProductDetailScreen() {
   const listing = listings.find((l) => l.id === current.params?.listingId);
   const { width } = useWindowDimensions();
   const desktop = isDesktopWidth(width);
+  const [zoomOpen, setZoomOpen] = useState(false);
 
   if (!listing) {
     return (
@@ -75,13 +78,20 @@ export function ProductDetailScreen() {
       <ScrollView contentContainerStyle={desktop ? styles.scrollContentDesktop : undefined}>
         <View style={desktop ? styles.desktopRow : undefined}>
           <View style={desktop ? styles.galleryColDesktop : styles.content}>
-            <View style={desktop ? styles.mainImageWrapDesktop : styles.mainImageWrap}>
+            <Pressable
+              style={desktop ? styles.mainImageWrapDesktop : styles.mainImageWrap}
+              onPress={() => setZoomOpen(true)}
+              accessibilityLabel="View photo full-screen"
+            >
               <Image
                 source={{ uri: listingImageUrl(listing) }}
                 style={[styles.mainImage, { resizeMode: "contain" }] as ImageStyle[]}
                 accessibilityLabel={listingImageAlt(listing)}
               />
-            </View>
+              <View style={styles.zoomHint}>
+                <Text style={styles.zoomHintText}>Tap to zoom</Text>
+              </View>
+            </Pressable>
             {!desktop ? infoBlock : null}
           </View>
           {desktop ? infoBlock : null}
@@ -90,6 +100,12 @@ export function ProductDetailScreen() {
       {!desktop ? (
         <View style={styles.footer}>{buyBlock}</View>
       ) : null}
+      <ImageZoomModal
+        visible={zoomOpen}
+        imageUri={listingImageUrl(listing)}
+        alt={listingImageAlt(listing)}
+        onClose={() => setZoomOpen(false)}
+      />
     </View>
   );
 }
@@ -144,6 +160,20 @@ const styles = StyleSheet.create({
   mainImage: {
     width: "100%",
     height: "100%",
+  },
+  zoomHint: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    backgroundColor: "rgba(33,27,24,0.55)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  zoomHintText: {
+    fontSize: 11,
+    color: colors.surface,
+    fontWeight: typography.weights.bodyMedium as "500",
   },
   title: {
     fontSize: 22,
