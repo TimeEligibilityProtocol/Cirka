@@ -6,6 +6,7 @@ const FILES: Record<string, number> = {
   "studio-shadow": require("../../assets/backgrounds/03-studio-shadow.png"),
   "architectural-arch": require("../../assets/backgrounds/04-architectural-arch.png"),
   "palm-shadow": require("../../assets/backgrounds/05-palm-shadow.png"),
+  "stone-texture": require("../../assets/backgrounds/06-stone-texture.png"),
 };
 
 export const BACKGROUND_PRESET_OPTIONS = BACKGROUND_PRESETS.map((preset) => ({

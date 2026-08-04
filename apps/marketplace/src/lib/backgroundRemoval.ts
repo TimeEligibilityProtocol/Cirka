@@ -1,4 +1,4 @@
-import { Image } from "react-native";
+import { Asset } from "expo-asset";
 import { apiClient } from "../config/apiClient";
 
 /**
@@ -20,7 +20,12 @@ const CANVAS_SIZE = { width: 1200, height: 1500 }; // matches the 4:5 product im
 /** Draws the approved background preset, then the cutout centered on top, and returns a data URL. */
 export function compositeOntoBackground(cutoutUri: string, backgroundAssetSource: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const backgroundUri = Image.resolveAssetSource(backgroundAssetSource).uri;
+    // Image.resolveAssetSource (from "react-native") is a native-only API —
+    // react-native-web's Image doesn't implement it, so it throws in the
+    // actual exported web bundle despite working when this file is
+    // eyeballed in isolation. Asset.fromModule is Expo's cross-platform
+    // (including web) equivalent.
+    const backgroundUri = Asset.fromModule(backgroundAssetSource).uri;
 
     const canvas = document.createElement("canvas");
     canvas.width = CANVAS_SIZE.width;
@@ -44,8 +49,11 @@ export function compositeOntoBackground(cutoutUri: string, backgroundAssetSource
       cutout.crossOrigin = "anonymous";
       cutout.onload = () => {
         // Contain-fit the cutout, leaving a margin so it reads as a
-        // product photo, not a full-bleed crop.
-        const margin = 0.88;
+        // product photo, not a full-bleed crop. Kept fairly generous
+        // (not tight) so each background preset's actual character
+        // (shadow, arch, halo) stays visible instead of being almost
+        // entirely covered by the product.
+        const margin = 0.7;
         const fit = Math.min((canvas.width * margin) / cutout.width, (canvas.height * margin) / cutout.height);
         const cw = cutout.width * fit;
         const ch = cutout.height * fit;

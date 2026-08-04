@@ -24,6 +24,7 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
   { id: "studio-shadow", file: "backgrounds/03-studio-shadow.png", allowedForMainPhoto: true, allowedForEvidencePhoto: false },
   { id: "architectural-arch", file: "backgrounds/04-architectural-arch.png", allowedForMainPhoto: true, allowedForEvidencePhoto: false },
   { id: "palm-shadow", file: "backgrounds/05-palm-shadow.png", allowedForMainPhoto: true, allowedForEvidencePhoto: false },
+  { id: "stone-texture", file: "backgrounds/06-stone-texture.png", allowedForMainPhoto: true, allowedForEvidencePhoto: false },
 ];
 
 export function getBackgroundPreset(id: string): BackgroundPreset | undefined {

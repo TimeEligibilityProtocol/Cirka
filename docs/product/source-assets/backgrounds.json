@@ -36,6 +36,12 @@
       "file": "backgrounds/05-palm-shadow.png",
       "allowedForMainPhoto": true,
       "allowedForEvidencePhoto": false
+    },
+    {
+      "id": "stone-texture",
+      "file": "backgrounds/06-stone-texture.png",
+      "allowedForMainPhoto": true,
+      "allowedForEvidencePhoto": false
     }
   ]
 }
