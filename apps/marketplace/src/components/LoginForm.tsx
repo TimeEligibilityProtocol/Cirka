@@ -49,7 +49,7 @@ export function LoginForm({ onSuccess, heading, sub }: { onSuccess: () => void; 
   return (
     <View style={styles.content}>
       <Text style={styles.heading}>{heading ?? (mode === "login" ? "Log in to continue" : "Create your account")}</Text>
-      <Text style={styles.sub}>{sub ?? "Selling on wearto.you requires an account — browsing doesn't."}</Text>
+      <Text style={styles.sub}>{sub ?? "Selling on Cirka requires an account — browsing doesn't."}</Text>
 
       {mode === "register" ? (
         <TextInput

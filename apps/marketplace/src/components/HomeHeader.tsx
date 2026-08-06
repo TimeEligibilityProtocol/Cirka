@@ -30,11 +30,22 @@ export function HomeHeader({
   );
 
   // Mobile/tablet already have Saved/Messages/Profile in the bottom nav —
-  // repeating them here would be a duplicate set of the same destinations.
+  // repeating them here would be a duplicate set of the same destinations,
+  // but search has no other home on mobile, so it stays in the header.
   if (!desktop) {
     return (
       <View style={[styles.compactRow, styles.compactRowLeft]}>
         <Wordmark size={28} />
+        <View style={styles.mobileSearchWrap}>
+          <SearchIcon size={15} color={colors.text} />
+          <TextInput
+            value={searchValue}
+            onChangeText={onSearchChange}
+            placeholder="Search…"
+            placeholderTextColor={`${colors.text}88`}
+            style={[styles.searchInput, { outlineStyle: "none" }] as never}
+          />
+        </View>
       </View>
     );
   }
@@ -52,16 +63,16 @@ export function HomeHeader({
     </View>
   );
 
-  // Three equal-width zones (logo / search / actions) so the search bar
-  // sits dead-center of the header regardless of how wide the other two
-  // are, rather than just centered in the leftover space.
+  // Wordmark on the left (nudged in slightly so it lines up with the hero
+  // image edge below it, not flush against the page edge); search grouped
+  // with the action icons on the right, starting right next to Saved.
   return (
     <View style={styles.desktopRow}>
       <View style={styles.zoneLeft}>
         <Wordmark size={46} />
       </View>
-      <View style={styles.zoneCenter}>{search}</View>
       <View style={styles.zoneRight}>
+        {search}
         {iconRow}
         <Pressable style={styles.sellButton} onPress={() => push("AddListing")}>
           <Text style={styles.sellButtonLabel}>Sell</Text>
@@ -81,6 +92,19 @@ const styles = StyleSheet.create({
   },
   compactRowLeft: {
     justifyContent: "flex-start",
+    gap: spacing.md,
+  },
+  mobileSearchWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   desktopRow: {
     flexDirection: "row",
@@ -93,11 +117,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-start",
-  },
-  zoneCenter: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingLeft: spacing.sm,
   },
   zoneRight: {
     flex: 1,

@@ -167,7 +167,7 @@ export function AddListingScreen() {
       const newListing: Listing = {
         id: `l_new_${Date.now()}`,
         sellerId: user!.id,
-        tenantId: "wearto_you",
+        tenantId: "cirka",
         categoryId: subcategoryId,
         status: "active",
         title: approvedField("New listing"),
@@ -400,7 +400,7 @@ function EditStep({
     <View>
       <Text style={styles.stepHeading}>Choose the background</Text>
       <Text style={styles.stepSub}>
-        wearto.you cuts the item out and places it on one approved background. The item itself is never altered.
+        Cirka cuts the item out and places it on one approved background. The item itself is never altered.
         Publishing isn't possible until this finishes — listings can't go live with their original background.
       </Text>
       <View style={styles.editPreviewWrap}>

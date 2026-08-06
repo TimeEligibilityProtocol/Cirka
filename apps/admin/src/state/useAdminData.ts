@@ -25,7 +25,7 @@ export function useAdminData() {
       setError(null);
       setLastUpdated(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not reach the wearto.you API.");
+      setError(err instanceof Error ? err.message : "Could not reach the Cirka API.");
     } finally {
       setLoading(false);
     }

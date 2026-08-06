@@ -29,5 +29,5 @@ app.use(uploadsRouter());
 app.use(backgroundRemovalRouter());
 
 app.listen(env.port, "0.0.0.0", () => {
-  console.log(`wearto.you api listening on :${env.port} (${env.nodeEnv})`);
+  console.log(`Cirka api listening on :${env.port} (${env.nodeEnv})`);
 });

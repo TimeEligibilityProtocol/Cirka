@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "wearto.you",
+    "name": "Cirka",
     "slug": "wearto-you-marketplace",
     "scheme": "weartoyou",
     "version": "0.0.0",
@@ -15,8 +15,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "wearto.you needs access to your photos so you can add them to a listing.",
-          "cameraPermission": "wearto.you needs access to your camera so you can photograph the item you're selling."
+          "photosPermission": "Cirka needs access to your photos so you can add them to a listing.",
+          "cameraPermission": "Cirka needs access to your camera so you can photograph the item you're selling."
         }
       ]
     ]

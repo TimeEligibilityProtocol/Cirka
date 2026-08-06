@@ -53,7 +53,7 @@ export function PayoutClaimScreen() {
         </View>
 
         <Text style={styles.note}>
-          wearto.you never shows you a wallet balance. You receive a secure claim for this specific payout and pick
+          Cirka never shows you a wallet balance. You receive a secure claim for this specific payout and pick
           where it lands.
         </Text>
       </View>

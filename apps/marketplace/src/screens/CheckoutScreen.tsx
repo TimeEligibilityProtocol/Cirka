@@ -199,7 +199,7 @@ export function CheckoutScreen() {
       </Pressable>
       {showPaymentInfo ? (
         <Text style={styles.noteExpanded}>
-          wearto.you never holds your funds — after delivery and acceptance, the seller's payout is addressed to
+          Cirka never holds your funds — after delivery and acceptance, the seller's payout is addressed to
           their verified identity, not routed through this checkout.
         </Text>
       ) : null}

@@ -40,7 +40,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const fresh = await apiClient.listListings();
         if (!cancelled) setListings(fresh);
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Could not reach the wearto.you API.");
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Could not reach the Cirka API.");
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -5,12 +5,10 @@ import { useStack } from "../nav/stack";
 
 const LANDSCAPE_URL = apiClient.resolveAssetUrl("/assets/hero/hero-landscape.webp");
 const PORTRAIT_URL = apiClient.resolveAssetUrl("/assets/hero/hero-portrait.webp");
-// v3 desktop image (2400x800, wider/shorter, smaller baked buttons
-// relative to the canvas) + v2 mobile image, both pre-composed at their
-// own exact ratios — the container just matches each file's dimensions,
-// so resizeMode "cover" never has to trim anything.
+// Approved Cirka hero exports. The app header remains a separate component;
+// no navigation is baked into either image.
 const LANDSCAPE_ASPECT_RATIO = 2400 / 800;
-const PORTRAIT_ASPECT_RATIO = 1080 / 968;
+const PORTRAIT_ASPECT_RATIO = 1080 / 1280;
 
 // The approved hero images have their headline and buttons baked in as
 // artwork — nothing is rendered on top except two invisible tap targets,
@@ -21,12 +19,12 @@ const PORTRAIT_ASPECT_RATIO = 1080 / 968;
 // artwork changes, these must be re-measured (see scripts used in dev:
 // PIL + connected-components on the button fill color).
 const LANDSCAPE_BUTTONS = {
-  shopNow: { left: "6.2%", top: "76.2%", width: "9.2%", height: "8.0%" },
-  sellYours: { left: "16.4%", top: "76.2%", width: "9.3%", height: "7.9%" },
+  shopNow: { left: "6.46%", top: "56.88%", width: "8.75%", height: "8.0%" },
+  sellYours: { left: "16.04%", top: "56.88%", width: "8.75%", height: "8.0%" },
 } as const;
 const PORTRAIT_BUTTONS = {
-  shopNow: { left: "6.7%", top: "55.3%", width: "25.0%", height: "7.8%" },
-  sellYours: { left: "33.2%", top: "55.3%", width: "25.4%", height: "7.7%" },
+  shopNow: { left: "6.48%", top: "79.30%", width: "40.74%", height: "7.19%" },
+  sellYours: { left: "49.07%", top: "79.30%", width: "40.74%", height: "7.19%" },
 } as const;
 
 export function HeroBanner({ onShopNow }: { onShopNow?: () => void }) {
@@ -43,7 +41,7 @@ export function HeroBanner({ onShopNow }: { onShopNow?: () => void }) {
       <Image
         source={{ uri }}
         style={[styles.image, { resizeMode: "cover" }] as ImageStyle[]}
-        accessibilityLabel="Pre-loved fashion in the UAE. Great pieces deserve another life. Woman in linen set carrying a coffee and a leather tote on a waterfront promenade."
+        accessibilityLabel="Fashion keeps moving. Beautiful pieces deserve another life. Woman in a black blazer leaning against a wall."
       />
       <Pressable
         onPress={onShopNow ?? (() => push("Discover"))}

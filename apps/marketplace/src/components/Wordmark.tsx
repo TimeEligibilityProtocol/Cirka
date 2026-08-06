@@ -4,8 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 export function Wordmark({ size = 15 }: { size?: number }) {
   return (
     <View style={styles.row}>
-      <Text style={[styles.text, { fontSize: size }]}>wearto</Text>
-      <Text style={[styles.text, styles.accent, { fontSize: size }]}>.you</Text>
+      <Text style={[styles.text, { fontSize: size }]}>Cirka</Text>
     </View>
   );
 }
@@ -16,8 +15,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.logo as "600",
     color: colors.text,
     letterSpacing: -0.3,
-  },
-  accent: {
-    color: colors.primary,
+    fontFamily: "Cormorant Infant",
   },
 });

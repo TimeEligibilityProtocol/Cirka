@@ -1,4 +1,5 @@
 import { colors, isDesktopWidth, spacing, typography } from "@wearto-you/ui";
+import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { ComponentType } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -105,6 +106,14 @@ function AppShell() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    "Cormorant Infant": require("./assets/fonts/CormorantInfant-Regular.ttf"),
+    Manrope: require("./assets/fonts/Manrope-Regular.ttf"),
+    "Manrope SemiBold": require("./assets/fonts/Manrope-SemiBold.ttf"),
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
     <AuthProvider>
       <StoreProvider>

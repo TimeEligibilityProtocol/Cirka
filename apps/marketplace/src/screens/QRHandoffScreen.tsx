@@ -11,7 +11,7 @@ export function QRHandoffScreen() {
   const { orders, confirmPickup } = useStore();
   const order = orders.find((o) => o.id === current.params?.orderId);
 
-  const token = useMemo(() => `wearto.you:order:${order?.id ?? "unknown"}`, [order?.id]);
+  const token = useMemo(() => `cirka:order:${order?.id ?? "unknown"}`, [order?.id]);
   const code = useMemo(() => String(Math.floor(100000 + Math.random() * 900000)), [order?.id]);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(token)}`;
 

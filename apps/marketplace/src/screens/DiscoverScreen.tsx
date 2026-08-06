@@ -105,7 +105,7 @@ export function DiscoverScreen() {
           ))}
         </View>
         {loadError ? (
-          <Text style={styles.empty}>Couldn't reach the wearto.you API ({loadError}). Is `npm run dev:api` running?</Text>
+          <Text style={styles.empty}>Couldn't reach the Cirka API ({loadError}). Is `npm run dev:api` running?</Text>
         ) : loading ? (
           <Text style={styles.empty}>Loading…</Text>
         ) : filtered.length === 0 ? (

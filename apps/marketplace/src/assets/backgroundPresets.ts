@@ -7,6 +7,9 @@ const FILES: Record<string, number> = {
   "architectural-arch": require("../../assets/backgrounds/04-architectural-arch.png"),
   "palm-shadow": require("../../assets/backgrounds/05-palm-shadow.png"),
   "stone-texture": require("../../assets/backgrounds/06-stone-texture.png"),
+  circle: require("../../assets/backgrounds/07-circle.png"),
+  "shadow-circle": require("../../assets/backgrounds/08-shadow-circle.png"),
+  beige: require("../../assets/backgrounds/09-beige.png"),
 };
 
 export const BACKGROUND_PRESET_OPTIONS = BACKGROUND_PRESETS.map((preset) => ({

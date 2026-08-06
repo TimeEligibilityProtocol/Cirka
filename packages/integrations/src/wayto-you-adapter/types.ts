@@ -47,7 +47,7 @@ export interface RequestPayoutClaimResult {
 
 /**
  * Identity-addressed payout routing, claim flow and two-sided security.
- * wearto.you never receives a wallet balance, full IBAN, or card data —
+ * Cirka never receives a wallet balance, full IBAN, or card data —
  * only opaque identity references and neutral status/verdict values.
  */
 export interface WayToYouRoutingProvider {

@@ -4,18 +4,20 @@
  */
 
 export const colors = {
-  background: "#F8F4EE", // ciepła kość słoniowa
-  surface: "#FFFDFC", // karty i pola — miękka biel
-  text: "#211B18", // głębokie espresso
-  primary: "#7E231D", // burgund — główna akcja, aktywny stan
-  primaryPressed: "#611B16", // ciemny burgund (stan wciśnięty)
-  neutralSurface: "#E9DED2", // jasny piasek
-  highlight: "#E7D3CF", // przygaszony różowo-beżowy — delikatny status
-  border: "#DED5CC", // ciepły kamień — linie i obramowania
+  background: "#F7F6F1",
+  surface: "#FFFFFF",
+  text: "#090909",
+  primary: "#899363",
+  primaryPressed: "#717A50",
+  neutralSurface: "#E8E6DD",
+  highlight: "#DCE2C5",
+  border: "#D8D6CF",
 } as const;
 
 export const typography = {
   fontFamily: "Manrope",
+  displayFontFamily: "Cormorant Infant",
+  buttonFontFamily: "Manrope SemiBold",
   weights: {
     logo: "600", // SemiBold, lowercase, tight tracking
     heading: "700",

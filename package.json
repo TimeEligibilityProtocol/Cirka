@@ -2,7 +2,7 @@
   "name": "wearto-you-monorepo",
   "private": true,
   "version": "0.0.0",
-  "description": "wearto.you — C2C fashion resale marketplace (Dubai/UAE). Standalone monorepo, isolated from TEP/Quantum/wayto.you core.",
+  "description": "Cirka — C2C fashion resale marketplace (Dubai/UAE). Standalone monorepo, isolated from TEP/Quantum/wayto.you core.",
   "workspaces": [
     "apps/*",
     "packages/*"
