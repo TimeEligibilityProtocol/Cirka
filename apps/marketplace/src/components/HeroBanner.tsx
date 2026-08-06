@@ -8,7 +8,7 @@ const PORTRAIT_URL = apiClient.resolveAssetUrl("/assets/hero/hero-portrait.webp"
 // Approved Cirka hero exports. The app header remains a separate component;
 // no navigation is baked into either image.
 const LANDSCAPE_ASPECT_RATIO = 2400 / 800;
-const PORTRAIT_ASPECT_RATIO = 1080 / 1280;
+const PORTRAIT_ASPECT_RATIO = 1122 / 1402;
 
 // The approved hero images have their headline and buttons baked in as
 // artwork — nothing is rendered on top except two invisible tap targets,
@@ -23,8 +23,8 @@ const LANDSCAPE_BUTTONS = {
   sellYours: { left: "16.04%", top: "56.88%", width: "8.75%", height: "8.0%" },
 } as const;
 const PORTRAIT_BUTTONS = {
-  shopNow: { left: "6.48%", top: "79.30%", width: "40.74%", height: "7.19%" },
-  sellYours: { left: "49.07%", top: "79.30%", width: "40.74%", height: "7.19%" },
+  shopNow: { left: "6.68%", top: "64.05%", width: "27.99%", height: "6.35%" },
+  sellYours: { left: "6.68%", top: "72.68%", width: "27.99%", height: "6.49%" },
 } as const;
 
 export function HeroBanner({ onShopNow }: { onShopNow?: () => void }) {
