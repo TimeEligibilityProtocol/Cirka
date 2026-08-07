@@ -8,8 +8,21 @@ import {
 } from "@wearto-you/domain";
 import { AiPhotoDetails } from "@wearto-you/api-client";
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
-import { useEffect, useState } from "react";
-import { Image, ImageStyle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  GestureResponderEvent,
+  Image,
+  ImageStyle,
+  PanResponder,
+  PanResponderGestureState,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { BACKGROUND_PRESET_OPTIONS } from "../assets/backgroundPresets";
 import { Header } from "../components/Header";
 import { LoginForm } from "../components/LoginForm";
@@ -25,6 +38,24 @@ import { useAuth } from "../state/auth";
 import { useStore } from "../state/store";
 
 const STEPS = ["Photo", "Edit", "Details", "Review"];
+
+// This wizard is a single reading column, not a dashboard — on a wide
+// browser window it should stay a comfortable, centered width instead of
+// stretching edge to edge (matches the tablet column width used in
+// CheckoutScreen). Same threshold also decides whether "Take a photo"
+// (a device camera) is worth offering: below it we assume a phone, at or
+// above it a tablet/desktop, where a seller almost never has photos to
+// take right there and would use "Choose from gallery" either way.
+const WIDE_SCREEN_MIN = 768;
+const WIZARD_MAX_WIDTH = 640;
+
+// The main photo's background is the seller's own choice (any preset with
+// allowedForMainPhoto) — it's the styled hero shot. Every other angle photo
+// always gets this one plain preset instead, no choice offered: a buyer
+// scrolling through five photos where each has a different decorative
+// scene reads as inconsistent/thrown-together, not five photos of the same
+// carefully-shot item.
+const EVIDENCE_BACKGROUND_PRESET = BACKGROUND_PRESET_OPTIONS.find((p) => p.allowedForEvidencePhoto) ?? BACKGROUND_PRESET_OPTIONS[0];
 
 // Temporary demo-deployment switch — the background-removal model needs
 // more RAM than this deploy's free hosting tier provides, so on that
@@ -53,10 +84,23 @@ const FALLBACK_DETAILS: AiPhotoDetails = {
   measurements: "Not detected — seller to confirm.",
 };
 
+// Per-photo background-removal/compositing state — one of these per "angle"
+// photo (see photoRoles in AddListingScreen). "Detail" photos never get one.
+type BgEntry = {
+  cutoutUri: string | null;
+  bgStatus: "idle" | "removing" | "ready" | "error";
+  bgErrorMessage: string | null;
+  composedUri: string | null;
+  offset: { x: number; y: number };
+};
+const EMPTY_BG_ENTRY: BgEntry = { cutoutUri: null, bgStatus: "idle", bgErrorMessage: null, composedUri: null, offset: { x: 0, y: 0 } };
+
 export function AddListingScreen() {
   const { reset } = useStack();
   const { user } = useAuth();
   const { addListing } = useStore();
+  const { width: windowWidth } = useWindowDimensions();
+  const isWideScreen = windowWidth >= WIDE_SCREEN_MIN;
   const [step, setStep] = useState(0);
   // Photos and background presets can be tried freely, logged out or in —
   // login is only required once a background has been approved, right
@@ -72,19 +116,66 @@ export function AddListingScreen() {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
-  // Background removal runs once per main photo (it's the expensive step —
-  // a real segmentation model, not a lookup) and is cached here so it
-  // survives navigating back and forth between steps. Re-compositing onto
-  // a different preset only redraws a canvas, so it's cheap to redo.
-  const [cutoutUri, setCutoutUri] = useState<string | null>(null);
-  const [bgStatus, setBgStatus] = useState<"idle" | "removing" | "ready" | "error">("idle");
-  const [composedUri, setComposedUri] = useState<string | null>(null);
-  const [bgErrorMessage, setBgErrorMessage] = useState<string | null>(null);
+  // Every photo gets the magic-listing treatment (background cut out and
+  // swapped for an approved preset) EXCEPT ones the seller explicitly marks
+  // "Detail shot" — label/tag/close-up photos that are proof of condition,
+  // not another angle of the item, and should stay exactly as shot. The
+  // main photo (index 0) is always an angle shot; it can't be marked detail.
+  // Keyed by photo URI rather than array index so reordering/removing
+  // photos in PhotoStep can never desync a role from the wrong photo.
+  const [photoRoles, setPhotoRoles] = useState<Record<string, "angle" | "detail">>({});
+  const roleFor = (uri: string, index: number) => (index === 0 ? "angle" : photoRoles[uri] ?? "angle");
+  const angleUris = photos.filter((uri, i) => roleFor(uri, i) === "angle");
+
+  // Background removal + compositing per angle photo — keyed by URI for the
+  // same reordering-safety reason as photoRoles above. Cached here (not in
+  // EditStep) so it survives navigating back and forth between steps.
+  const [bgByUri, setBgByUri] = useState<Record<string, BgEntry>>({});
+  const allAngleReady = angleUris.length > 0 && angleUris.every((uri) => bgByUri[uri]?.bgStatus === "ready" && bgByUri[uri]?.composedUri);
 
   const mainPhoto = photos[0];
-  // Bumped to re-trigger removal below after a failure — mainPhoto alone
-  // doesn't change on retry, so it wouldn't re-run the effect on its own.
-  const [retryToken, setRetryToken] = useState(0);
+
+  // Runs background removal then composites onto the current preset for a
+  // single photo. Used both by the auto-kickoff effect below (new angle
+  // photos) and directly by the per-photo Retry button — retrying doesn't
+  // need a token/dependency dance since this is called imperatively.
+  const processPhoto = (uri: string) => {
+    const preset = uri === mainPhoto ? BACKGROUND_PRESET_OPTIONS.find((p) => p.id === backgroundPresetId) : EVIDENCE_BACKGROUND_PRESET;
+    if (!preset) return;
+    setBgByUri((prev) => ({ ...prev, [uri]: { ...EMPTY_BG_ENTRY, bgStatus: "removing" } }));
+    removeImageBackground(uri)
+      .then((cutoutUri) =>
+        compositeOntoBackground(cutoutUri, preset.source, { x: 0, y: 0 }).then((composedUri) => ({ cutoutUri, composedUri }))
+      )
+      .then(({ cutoutUri, composedUri }) => {
+        setBgByUri((prev) => ({ ...prev, [uri]: { cutoutUri, bgStatus: "ready", bgErrorMessage: null, composedUri, offset: { x: 0, y: 0 } } }));
+      })
+      .catch((err) => {
+        console.error("processPhoto failed:", err);
+        const message =
+          err instanceof Error && err.message.includes("no_product_detected")
+            ? "We couldn't find a product in this photo. Try a clearer, well-lit shot with the item centered against a plain surface."
+            : null;
+        setBgByUri((prev) => ({ ...prev, [uri]: { ...EMPTY_BG_ENTRY, bgStatus: "error", bgErrorMessage: message } }));
+      });
+  };
+
+  // Re-bakes one photo's composite at a new drag position — called once on
+  // drag release, not on every move event, since each bake is a real
+  // 1200x1500 canvas draw. During the drag itself, EditPhotoCard shows a
+  // cheap live-positioned overlay instead of re-baking continuously.
+  const rebakeComposite = (uri: string, offset: { x: number; y: number }) => {
+    const entry = bgByUri[uri];
+    if (!entry?.cutoutUri) return;
+    const preset = uri === mainPhoto ? BACKGROUND_PRESET_OPTIONS.find((p) => p.id === backgroundPresetId) : EVIDENCE_BACKGROUND_PRESET;
+    if (!preset) return;
+    compositeOntoBackground(entry.cutoutUri, preset.source, offset)
+      .then((composedUri) => setBgByUri((prev) => ({ ...prev, [uri]: { ...prev[uri], composedUri, offset } })))
+      .catch((err) => console.error("compositeOntoBackground (reposition) failed:", err));
+  };
+
+  const setOffsetFor = (uri: string, offset: { x: number; y: number }) =>
+    setBgByUri((prev) => (prev[uri] ? { ...prev, [uri]: { ...prev[uri], offset } } : prev));
 
   // Real AI reading of the item (color/material/condition/description/
   // measurements) — runs in parallel with background removal on the same
@@ -103,6 +194,11 @@ export function AddListingScreen() {
   const [measurementsText, setMeasurementsText] = useState("");
   const [colorText, setColorText] = useState("");
   const [materialText, setMaterialText] = useState("");
+  // Size isn't AI-detected (nothing about a photo tells you the label
+  // inside the garment) — the seller types it directly. Asked for on the
+  // Photo step rather than Details, since it's as essential as the photo
+  // itself and shouldn't wait behind background removal/AI analysis.
+  const [sizeText, setSizeText] = useState("");
   // Condition is a suggestion the seller actively confirms or overrides —
   // a chip pick, not free text, since it's constrained to the same tiers
   // used everywhere else in the app (see CONDITIONS in analyzePhoto.ts).
@@ -182,61 +278,38 @@ export function AddListingScreen() {
     // On the memory-constrained demo deployment, don't even call the
     // (crash-prone) removal endpoint — picking a photo alone shouldn't
     // take the server down before anyone reaches Continue.
-    if (!mainPhoto || MAGIC_LISTING_DISABLED) return;
-    let cancelled = false;
-    setCutoutUri(null);
-    setComposedUri(null);
-    setBgErrorMessage(null);
-    setBgStatus("removing");
-    removeImageBackground(mainPhoto)
-      .then((uri) => {
-        if (!cancelled) {
-          setCutoutUri(uri);
-          setBgStatus("ready");
-        }
-      })
-      .catch((err) => {
-        console.error("removeImageBackground failed:", err);
-        if (!cancelled) {
-          setBgErrorMessage(
-            err instanceof Error && err.message.includes("no_product_detected")
-              ? "We couldn't find a product in this photo. Try a clearer, well-lit shot with the item centered against a plain surface."
-              : null
-          );
-          setBgStatus("error");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+    if (MAGIC_LISTING_DISABLED) return;
+    angleUris.forEach((uri) => {
+      if (!bgByUri[uri]) processPhoto(uri);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainPhoto, retryToken]);
+  }, [photos, photoRoles]);
 
   useEffect(() => {
-    if (!cutoutUri) return;
+    // Only fires when the seller changes the preset, not when a photo
+    // finishes processing (processPhoto already composites onto the
+    // current preset itself) — re-bakes the main photo's composite onto
+    // the new preset, recentered, without re-running background removal.
+    // Other angle photos always use EVIDENCE_BACKGROUND_PRESET, which
+    // never changes here, so they don't need re-baking.
+    if (!mainPhoto) return;
     const preset = BACKGROUND_PRESET_OPTIONS.find((p) => p.id === backgroundPresetId);
-    if (!preset) return;
-    let cancelled = false;
-    compositeOntoBackground(cutoutUri, preset.source)
-      .then((uri) => {
-        if (!cancelled) setComposedUri(uri);
+    const entry = bgByUri[mainPhoto];
+    if (!preset || !entry?.cutoutUri) return;
+    compositeOntoBackground(entry.cutoutUri, preset.source, { x: 0, y: 0 })
+      .then((composedUri) => {
+        setBgByUri((prev) => (prev[mainPhoto] ? { ...prev, [mainPhoto]: { ...prev[mainPhoto], composedUri, offset: { x: 0, y: 0 } } } : prev));
       })
-      .catch((err) => {
-        console.error("compositeOntoBackground failed:", err);
-        if (!cancelled) setBgStatus("error");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [cutoutUri, backgroundPresetId]);
+      .catch((err) => console.error("recomposite on preset change failed:", err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backgroundPresetId]);
 
   // Hard rule: nobody publishes a photo with its original background —
   // only one of our approved presets. So the Edit step can't be left
   // (and Publish can't fire) until the swap has actually succeeded, not
   // just "finished trying" — a failure blocks forward progress too,
   // with Retry as the only way past it.
-  const backgroundReady = bgStatus === "ready" && composedUri !== null;
-  const editStepBlocked = step === 1 && !backgroundReady;
+  const editStepBlocked = step === 1 && !allAngleReady;
   const photoStepBlocked = step === 0 && MAGIC_LISTING_DISABLED && photos.length > 0;
   const canContinue = (step > 0 || photos.length > 0) && !editStepBlocked && !photoStepBlocked;
   const next = () => {
@@ -252,9 +325,9 @@ export function AddListingScreen() {
   };
 
   const onPublish = async () => {
-    // composedUri is required, not just preferred — a listing can never
-    // go live with its original, unswapped background.
-    if (publishing || photos.length === 0 || !composedUri) return;
+    // Every angle photo needs its composed image ready — a listing can
+    // never go live with an original, unswapped background.
+    if (publishing || photos.length === 0 || !allAngleReady) return;
     // Login is the very last gate, right before the item actually goes
     // live — a seller can go through Photo/Edit/Details/Review freely
     // without an account, same as browsing. The prompt reappears here
@@ -266,10 +339,10 @@ export function AddListingScreen() {
     setPublishing(true);
     setPublishError(null);
     try {
-      // The rest of the photos (fabric close-ups, labels, defects) stay
-      // original — matching the "proof photos never get their background
-      // changed" rule; only the main photo gets the background swap.
-      const photosToUpload = [composedUri, ...photos.slice(1)];
+      // Angle photos upload their composed (background-swapped) version;
+      // detail shots (label/tag/close-up) stay exactly as the seller shot
+      // them — that's the whole point of marking a photo "Detail".
+      const photosToUpload = photos.map((uri, i) => (roleFor(uri, i) === "angle" ? bgByUri[uri]?.composedUri ?? uri : uri));
       const uploadedUrls = await apiClient.uploadPhotos(photosToUpload);
       const priceNumber = Number(price) || 0;
       const newListing: Listing = {
@@ -282,7 +355,7 @@ export function AddListingScreen() {
         description: approvedField(descriptionText.trim() || "Newly listed via Magic Listing — AI-assisted draft, reviewed and approved by seller."),
         brand: approvedField("Unbranded"),
         color: approvedField(colorText.trim() || FALLBACK_DETAILS.color),
-        size: approvedField("M"),
+        size: approvedField(sizeText.trim() || "One size"),
         material: approvedField(materialText.trim() || FALLBACK_DETAILS.material),
         condition: approvedField(conditionValue || FALLBACK_DETAILS.condition, conditionNoteText.trim() || FALLBACK_DETAILS.conditionNote),
         labelStatus: "available",
@@ -309,18 +382,22 @@ export function AddListingScreen() {
       <View style={styles.container}>
         <Header title="Magic Listing" />
         <ScrollView contentContainerStyle={styles.content}>
-          <LoginForm
-            heading="Log in to publish"
-            sub="Your photo and background are saved — log in or create an account to finish publishing."
-            onSuccess={() => {
-              // Login happens at the end now, from Review — stay right
-              // there so the seller just taps Publish again.
-              setAwaitingLogin(false);
-            }}
-          />
+          <View style={styles.wizardCol}>
+            <LoginForm
+              heading="Log in to publish"
+              sub="Your photo and background are saved — log in or create an account to finish publishing."
+              onSuccess={() => {
+                // Login happens at the end now, from Review — stay right
+                // there so the seller just taps Publish again.
+                setAwaitingLogin(false);
+              }}
+            />
+          </View>
         </ScrollView>
         <View style={styles.footer}>
-          <PrimaryButton label="Back" variant="secondary" onPress={back} style={styles.backBtn} />
+          <View style={styles.footerInner}>
+            <PrimaryButton label="Back" variant="secondary" onPress={back} style={styles.backBtn} />
+          </View>
         </View>
       </View>
     );
@@ -331,16 +408,29 @@ export function AddListingScreen() {
       <Header title="Magic Listing" />
       <StepperHeader steps={STEPS} activeIndex={step} />
       <ScrollView contentContainerStyle={styles.content}>
-        {step === 0 ? <PhotoStep photos={photos} onPhotosChange={setPhotos} comingSoon={photoStepBlocked} /> : null}
+        <View style={styles.wizardCol}>
+        {step === 0 ? (
+          <PhotoStep
+            photos={photos}
+            onPhotosChange={setPhotos}
+            comingSoon={photoStepBlocked}
+            showCameraOption={!isWideScreen}
+            sizeText={sizeText}
+            setSizeText={setSizeText}
+            photoRoles={photoRoles}
+            setPhotoRoles={setPhotoRoles}
+          />
+        ) : null}
         {step === 1 ? (
           <EditStep
-            imageUri={photos[0]}
-            composedUri={composedUri}
-            bgStatus={bgStatus}
-            bgErrorMessage={bgErrorMessage}
+            angleUris={angleUris}
+            bgByUri={bgByUri}
             backgroundPresetId={backgroundPresetId}
             setBackgroundPresetId={setBackgroundPresetId}
-            onRetry={() => setRetryToken((t) => t + 1)}
+            onRetry={processPhoto}
+            setOffset={setOffsetFor}
+            onRepositionEnd={rebakeComposite}
+            detailCount={photos.length - angleUris.length}
           />
         ) : null}
         {step === 2 ? (
@@ -369,15 +459,18 @@ export function AddListingScreen() {
         ) : null}
         {step === 3 ? <ReviewStep price={price} setPrice={setPrice} /> : null}
         {publishError ? <Text style={styles.publishError}>{publishError}</Text> : null}
+        </View>
       </ScrollView>
       <View style={styles.footer}>
-        {step > 0 ? <PrimaryButton label="Back" variant="secondary" onPress={back} style={styles.backBtn} /> : null}
-        <PrimaryButton
-          label={step === STEPS.length - 1 ? (publishing ? "Publishing…" : "Publish") : "Continue"}
-          onPress={step === STEPS.length - 1 ? onPublish : next}
-          disabled={step === STEPS.length - 1 ? publishing || !composedUri : !canContinue}
-          style={styles.continueBtn}
-        />
+        <View style={styles.footerInner}>
+          {step > 0 ? <PrimaryButton label="Back" variant="secondary" onPress={back} style={styles.backBtn} /> : null}
+          <PrimaryButton
+            label={step === STEPS.length - 1 ? (publishing ? "Publishing…" : "Publish") : "Continue"}
+            onPress={step === STEPS.length - 1 ? onPublish : next}
+            disabled={step === STEPS.length - 1 ? publishing || !allAngleReady : !canContinue}
+            style={styles.continueBtn}
+          />
+        </View>
       </View>
     </View>
   );
@@ -387,10 +480,20 @@ function PhotoStep({
   photos,
   onPhotosChange,
   comingSoon,
+  showCameraOption,
+  sizeText,
+  setSizeText,
+  photoRoles,
+  setPhotoRoles,
 }: {
   photos: string[];
   onPhotosChange: (photos: string[]) => void;
   comingSoon: boolean;
+  showCameraOption: boolean;
+  sizeText: string;
+  setSizeText: (v: string) => void;
+  photoRoles: Record<string, "angle" | "detail">;
+  setPhotoRoles: (updater: (prev: Record<string, "angle" | "detail">) => Record<string, "angle" | "detail">) => void;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -418,11 +521,21 @@ function PhotoStep({
       <View>
         <Text style={styles.stepHeading}>Photograph the item</Text>
         <Text style={styles.stepSub}>Front, back, fabric close-up, label — follow the category guide.</Text>
+        <Text style={styles.fieldLabel}>Size</Text>
+        <TextInput
+          value={sizeText}
+          onChangeText={setSizeText}
+          placeholder="e.g. M, EU 38, One size"
+          placeholderTextColor={`${colors.text}55`}
+          style={[styles.editableField, { marginBottom: spacing.md }]}
+        />
         <View style={styles.pickerRow}>
-          <Pressable style={styles.pickerButton} onPress={() => addPhotos(takePhoto)} disabled={busy}>
-            <CameraIcon size={26} color={colors.primary} />
-            <Text style={styles.pickerButtonLabel}>Take a photo</Text>
-          </Pressable>
+          {showCameraOption ? (
+            <Pressable style={styles.pickerButton} onPress={() => addPhotos(takePhoto)} disabled={busy}>
+              <CameraIcon size={26} color={colors.primary} />
+              <Text style={styles.pickerButtonLabel}>Take a photo</Text>
+            </Pressable>
+          ) : null}
           <Pressable style={styles.pickerButton} onPress={() => addPhotos(() => chooseFromGallery(MAX_PHOTOS))} disabled={busy}>
             <ImageIcon size={26} color={colors.primary} />
             <Text style={styles.pickerButtonLabel}>Choose from gallery</Text>
@@ -441,7 +554,19 @@ function PhotoStep({
           {photos.length}/{MAX_PHOTOS}
         </Text>
       </View>
-      <Text style={styles.stepSub}>The first photo is your main photo — it's what buyers see first in the feed.</Text>
+      <Text style={styles.stepSub}>
+        The first photo is your main photo — it's what buyers see first in the feed. Every photo tagged "Full shot"
+        gets its background swapped the same way; tap a photo's tag to mark it "Detail shot" (label, tag, close-up)
+        instead so it stays exactly as you shot it.
+      </Text>
+      <Text style={styles.fieldLabel}>Size</Text>
+      <TextInput
+        value={sizeText}
+        onChangeText={setSizeText}
+        placeholder="e.g. M, EU 38, One size"
+        placeholderTextColor={`${colors.text}55`}
+        style={[styles.editableField, { marginBottom: spacing.md }]}
+      />
       <View style={styles.photoGrid}>
         {photos.map((uri, index) => (
           <View key={uri} style={styles.photoTileWrap}>
@@ -472,6 +597,18 @@ function PhotoStep({
                 <ArrowRightIcon size={13} color={index === photos.length - 1 ? colors.border : colors.text} />
               </Pressable>
             </View>
+            {index > 0 ? (
+              <Pressable
+                onPress={() =>
+                  setPhotoRoles((prev) => ({ ...prev, [uri]: (prev[uri] ?? "angle") === "angle" ? "detail" : "angle" }))
+                }
+                style={styles.roleToggle}
+              >
+                <Text style={styles.roleToggleText}>
+                  {(photoRoles[uri] ?? "angle") === "angle" ? "Full shot" : "Detail shot"}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ))}
         {photos.length < MAX_PHOTOS ? (
@@ -485,9 +622,6 @@ function PhotoStep({
           </Pressable>
         ) : null}
       </View>
-      <Pressable onPress={() => addPhotos(takePhoto)} disabled={busy || photos.length >= MAX_PHOTOS}>
-        <Text style={styles.addMoreLink}>+ Take another photo</Text>
-      </Pressable>
       {comingSoon ? (
         <View style={styles.comingSoonBox}>
           <Text style={styles.comingSoonText}>
@@ -500,36 +634,176 @@ function PhotoStep({
   );
 }
 
+// How far the seller can drag the cutout off-center, as a fraction of the
+// canvas's own half-width/half-height (see compositeOntoBackground) — high
+// enough to give real room to reposition, low enough that the product
+// can't be dragged fully out of frame.
+const MAX_DRAG_OFFSET = 0.4;
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
 function EditStep({
-  imageUri,
-  composedUri,
-  bgStatus,
-  bgErrorMessage,
+  angleUris,
+  bgByUri,
   backgroundPresetId,
   setBackgroundPresetId,
   onRetry,
+  setOffset,
+  onRepositionEnd,
+  detailCount,
 }: {
-  imageUri: string | undefined;
-  composedUri: string | null;
-  bgStatus: "idle" | "removing" | "ready" | "error";
-  bgErrorMessage: string | null;
+  angleUris: string[];
+  bgByUri: Record<string, BgEntry>;
   backgroundPresetId: string;
   setBackgroundPresetId: (id: string) => void;
-  onRetry: () => void;
+  onRetry: (uri: string) => void;
+  setOffset: (uri: string, offset: { x: number; y: number }) => void;
+  onRepositionEnd: (uri: string, offset: { x: number; y: number }) => void;
+  detailCount: number;
 }) {
+  const mainPreset = BACKGROUND_PRESET_OPTIONS.find((p) => p.id === backgroundPresetId);
+  return (
+    <View>
+      <Text style={styles.stepHeading}>Choose the background</Text>
+      <Text style={styles.stepSub}>
+        Cirka cuts your main photo out and places it on the background you pick below. Every other full-shot photo
+        automatically gets a plain, consistent background instead — no picking needed, and it keeps the set looking
+        like one shoot rather than several different scenes. The item itself is never altered. Publishing isn't
+        possible until every photo below finishes — drag any of them to reposition it.
+      </Text>
+      <Text style={styles.fieldLabel}>Main photo background</Text>
+      <View style={styles.presetRow}>
+        {BACKGROUND_PRESET_OPTIONS.filter((p) => p.allowedForMainPhoto).map((preset: BackgroundPreset & { source: number }) => {
+          const active = preset.id === backgroundPresetId;
+          return (
+            <Pressable key={preset.id} onPress={() => setBackgroundPresetId(preset.id)} style={styles.presetTile}>
+              <View style={[styles.presetSwatchWrap, active ? styles.presetSwatchActive : undefined]}>
+                <Image source={preset.source} style={[styles.fill, { resizeMode: "cover" }]} />
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      {angleUris.map((uri, i) => (
+        <EditPhotoCard
+          key={uri}
+          label={i === 0 ? "Main photo" : `Photo ${i + 1} of ${angleUris.length}`}
+          imageUri={uri}
+          entry={bgByUri[uri] ?? EMPTY_BG_ENTRY}
+          activePreset={i === 0 ? mainPreset : EVIDENCE_BACKGROUND_PRESET}
+          onRetry={() => onRetry(uri)}
+          setOffset={(offset) => setOffset(uri, offset)}
+          onRepositionEnd={(offset) => onRepositionEnd(uri, offset)}
+        />
+      ))}
+      <Text style={styles.stepSub}>
+        {detailCount > 0
+          ? `${detailCount} photo${detailCount === 1 ? "" : "s"} marked "Detail shot" on the previous step ${detailCount === 1 ? "stays" : "stay"} exactly as shot — label, defect and close-up photos aren't cut out.`
+          : "Label, defect and serial-number photos can be marked \"Detail shot\" on the previous step to keep them exactly as shot."}
+      </Text>
+    </View>
+  );
+}
+
+function EditPhotoCard({
+  label,
+  imageUri,
+  entry,
+  activePreset,
+  onRetry,
+  setOffset,
+  onRepositionEnd,
+}: {
+  label: string;
+  imageUri: string;
+  entry: BgEntry;
+  activePreset: (BackgroundPreset & { source: number }) | undefined;
+  onRetry: () => void;
+  setOffset: (offset: { x: number; y: number }) => void;
+  onRepositionEnd: (offset: { x: number; y: number }) => void;
+}) {
+  const { cutoutUri, composedUri, bgStatus, bgErrorMessage, offset } = entry;
+  const interactive = bgStatus === "ready" && !!cutoutUri && !!activePreset;
+
+  // The PanResponder itself is created exactly once per card (recreating it
+  // on every render would drop any gesture in progress). Its handlers must
+  // therefore never close over reactive render values directly —
+  // `interactive`, `setOffset`, `onRepositionEnd` — or they'd permanently
+  // see whatever those were on the very first render (e.g. `interactive` is
+  // always false at mount, before background removal finishes). Every
+  // value the handlers need lives in a ref that's reassigned each render
+  // instead, so the handlers always read the current one.
+  const containerSize = useRef({ width: 0, height: 0 });
+  const liveOffset = useRef(offset);
+  const dragStart = useRef(offset);
+  const interactiveRef = useRef(interactive);
+  const setOffsetRef = useRef(setOffset);
+  const onRepositionEndRef = useRef(onRepositionEnd);
+  liveOffset.current = offset;
+  interactiveRef.current = interactive;
+  setOffsetRef.current = setOffset;
+  onRepositionEndRef.current = onRepositionEnd;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => interactiveRef.current,
+      onMoveShouldSetPanResponder: () => interactiveRef.current,
+      onPanResponderGrant: () => {
+        dragStart.current = liveOffset.current;
+      },
+      onPanResponderMove: (_evt: GestureResponderEvent, gesture: PanResponderGestureState) => {
+        const w = containerSize.current.width || 1;
+        const h = containerSize.current.height || 1;
+        const next = {
+          x: clamp(dragStart.current.x + gesture.dx / (w / 2), -MAX_DRAG_OFFSET, MAX_DRAG_OFFSET),
+          y: clamp(dragStart.current.y + gesture.dy / (h / 2), -MAX_DRAG_OFFSET, MAX_DRAG_OFFSET),
+        };
+        liveOffset.current = next;
+        setOffsetRef.current(next);
+      },
+      onPanResponderRelease: () => onRepositionEndRef.current(liveOffset.current),
+      onPanResponderTerminate: () => onRepositionEndRef.current(liveOffset.current),
+    })
+  ).current;
+
   // Never preview the original background as a stand-in for the swapped
   // one — a listing can only publish with one of our presets, so the
   // preview shouldn't imply otherwise while that hasn't happened yet.
   const previewUri = composedUri ?? (bgStatus === "removing" ? imageUri : undefined);
   return (
-    <View>
-      <Text style={styles.stepHeading}>Choose the background</Text>
-      <Text style={styles.stepSub}>
-        Cirka cuts the item out and places it on one approved background. The item itself is never altered.
-        Publishing isn't possible until this finishes — listings can't go live with their original background.
-      </Text>
-      <View style={styles.editPreviewWrap}>
-        {previewUri ? <Image source={{ uri: previewUri }} style={[styles.fill, { resizeMode: "cover" }]} /> : null}
+    <View style={{ marginBottom: spacing.lg }}>
+      <Text style={[styles.fieldLabel, { marginBottom: spacing.xs }]}>{label}</Text>
+      <View
+        style={styles.editPreviewWrap}
+        onLayout={(e) => {
+          containerSize.current = { width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height };
+        }}
+        {...(interactive ? panResponder.panHandlers : {})}
+      >
+        {interactive ? (
+          <>
+            <Image
+              source={activePreset!.source}
+              style={[styles.fill, { position: "absolute", top: 0, left: 0, resizeMode: "cover" }]}
+            />
+            <Image
+              source={{ uri: cutoutUri! }}
+              style={
+                [
+                  {
+                    position: "absolute",
+                    resizeMode: "contain",
+                    top: `${15 + offset.y * 50}%`,
+                    left: `${15 + offset.x * 50}%`,
+                    width: "70%",
+                    height: "70%",
+                  },
+                ] as ImageStyle[]
+              }
+            />
+          </>
+        ) : previewUri ? (
+          <Image source={{ uri: previewUri }} style={[styles.fill, { resizeMode: "cover" }]} />
+        ) : null}
         {bgStatus === "removing" ? (
           <View style={styles.bgOverlay}>
             <Text style={styles.bgOverlayText}>Removing background…{"\n"}first time can take a few seconds.</Text>
@@ -546,22 +820,6 @@ function EditStep({
           </Pressable>
         </View>
       ) : null}
-      <View style={styles.presetRow}>
-        {BACKGROUND_PRESET_OPTIONS.map((preset: BackgroundPreset & { source: number }) => {
-          const active = preset.id === backgroundPresetId;
-          return (
-            <Pressable key={preset.id} onPress={() => setBackgroundPresetId(preset.id)} style={styles.presetTile}>
-              <View style={[styles.presetSwatchWrap, active ? styles.presetSwatchActive : undefined]}>
-                <Image source={preset.source} style={[styles.fill, { resizeMode: "cover" }]} />
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text style={styles.stepSub}>
-        Label, defect and serial-number photos always stay on a plain background, or keep the original if cutting
-        them out would make the proof less trustworthy.
-      </Text>
     </View>
   );
 }
@@ -614,10 +872,7 @@ function DetailsStep({
 
   return (
     <View>
-      <View style={styles.detailsHeader}>
-        <Text style={styles.stepHeading}>Detected details</Text>
-        <Text style={styles.editAll}>Edit all</Text>
-      </View>
+      <Text style={styles.stepHeading}>Detected details</Text>
 
       <Text style={styles.fieldLabel}>Category</Text>
       <View style={styles.chipRow}>
@@ -777,7 +1032,8 @@ function ReviewStep({ price, setPrice }: { price: string; setPrice: (v: string) 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.md, paddingBottom: spacing.xl },
+  content: { padding: spacing.md, paddingBottom: spacing.xl, alignItems: "center" },
+  wizardCol: { width: "100%", maxWidth: WIZARD_MAX_WIDTH },
   stepHeading: { fontSize: 20, fontWeight: typography.weights.heading as "700", color: colors.text, marginBottom: spacing.xs },
   stepSub: { fontSize: 13, color: colors.text, opacity: 0.65, lineHeight: 19, marginBottom: spacing.md },
   publishError: {
@@ -843,6 +1099,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  roleToggle: {
+    marginTop: 4,
+    alignItems: "center",
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    backgroundColor: colors.neutralSurface,
+  },
+  roleToggleText: { fontSize: 10, color: colors.text, opacity: 0.75, fontWeight: typography.weights.bodyMedium as "500" },
   addTile: {
     alignItems: "center",
     justifyContent: "center",
@@ -991,13 +1255,13 @@ const styles = StyleSheet.create({
   calcValue: { fontSize: 14, color: colors.text },
   calcValueStrong: { fontSize: 16, color: colors.text, fontWeight: typography.weights.price as "600" },
   footer: {
-    flexDirection: "row",
-    gap: spacing.sm,
     padding: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
+    alignItems: "center",
   },
+  footerInner: { flexDirection: "row", gap: spacing.sm, width: "100%", maxWidth: WIZARD_MAX_WIDTH },
   backBtn: { flex: 1 },
   continueBtn: { flex: 2 },
 });

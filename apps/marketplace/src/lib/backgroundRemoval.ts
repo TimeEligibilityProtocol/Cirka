@@ -17,8 +17,20 @@ export async function removeImageBackground(imageUri: string): Promise<string> {
 
 const CANVAS_SIZE = { width: 1200, height: 1500 }; // matches the 4:5 product image spec
 
-/** Draws the approved background preset, then the cutout centered on top, and returns a data URL. */
-export function compositeOntoBackground(cutoutUri: string, backgroundAssetSource: number): Promise<string> {
+/**
+ * Draws the approved background preset, then the cutout on top — centered
+ * by default, or shifted by `offset` (fractions of the canvas's own
+ * half-width/half-height, e.g. x:0.1 = shifted right by 10% of half the
+ * canvas width) when the seller has dragged it. Using a fraction rather
+ * than raw pixels means the same offset value produces the same relative
+ * position regardless of what size the interactive on-screen preview was
+ * versus this full-resolution canvas.
+ */
+export function compositeOntoBackground(
+  cutoutUri: string,
+  backgroundAssetSource: number,
+  offset: { x: number; y: number } = { x: 0, y: 0 }
+): Promise<string> {
   return new Promise((resolve, reject) => {
     // Image.resolveAssetSource (from "react-native") is a native-only API —
     // react-native-web's Image doesn't implement it, so it throws in the
@@ -57,7 +69,9 @@ export function compositeOntoBackground(cutoutUri: string, backgroundAssetSource
         const fit = Math.min((canvas.width * margin) / cutout.width, (canvas.height * margin) / cutout.height);
         const cw = cutout.width * fit;
         const ch = cutout.height * fit;
-        ctx.drawImage(cutout, (canvas.width - cw) / 2, (canvas.height - ch) / 2, cw, ch);
+        const dx = (canvas.width - cw) / 2 + offset.x * (canvas.width / 2);
+        const dy = (canvas.height - ch) / 2 + offset.y * (canvas.height / 2);
+        ctx.drawImage(cutout, dx, dy, cw, ch);
         resolve(canvas.toDataURL("image/png"));
       };
       cutout.onerror = () => reject(new Error("Failed to load cutout image"));

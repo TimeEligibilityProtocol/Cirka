@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 export function StepperHeader({ steps, activeIndex }: { steps: string[]; activeIndex: number }) {
   return (
     <View style={styles.row}>
+      <View style={styles.inner}>
       {steps.map((step, i) => {
         const done = i < activeIndex;
         const active = i === activeIndex;
@@ -21,19 +22,24 @@ export function StepperHeader({ steps, activeIndex }: { steps: string[]; activeI
           </View>
         );
       })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: "row",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    alignItems: "center",
   },
+  // Same cap as AddListingScreen's WIZARD_MAX_WIDTH — this component is
+  // only ever used inside that wizard, so a matching literal here is fine
+  // (a shared constant would be overkill for a one-consumer component).
+  inner: { flexDirection: "row", width: "100%", maxWidth: 640 },
   stepWrap: { flex: 1, alignItems: "center" },
   stepCircleRow: { flexDirection: "row", alignItems: "center", width: "100%" },
   circle: {
