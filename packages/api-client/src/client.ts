@@ -169,4 +169,62 @@ export class ApiClient {
     const { url } = (await res.json()) as { url: string };
     return url;
   }
+
+  /**
+   * Sends a single locally-picked photo to a real vision-capable model
+   * (server-side — see apps/api/src/routes/analyzePhoto.ts) and returns
+   * its read on color/material/condition/description/measurements. Not
+   * available until the operator configures ANTHROPIC_API_KEY — throws
+   * ApiError(503) if unconfigured, which callers should treat as
+   * "AI analysis unavailable, seller fills the details in manually"
+   * rather than a hard failure.
+   */
+  async analyzePhoto(localUri: string): Promise<AiPhotoDetails> {
+    const blob = await (await fetch(localUri)).blob();
+    const formData = new FormData();
+    formData.append("photo", blob, "photo.jpg");
+
+    const token = await this.config.getAuthToken?.();
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${this.config.baseUrl}/api/analyze-photo`, { method: "POST", body: formData, headers });
+    if (!res.ok) throw new ApiError(res.status, await res.text());
+    return (await res.json()) as AiPhotoDetails;
+  }
+
+  /**
+   * Real, calculated measurements from a dedicated flat-lay photo (item +
+   * a standard bank card for scale) — see apps/api/src/routes/measurePhoto.ts.
+   * Deliberately separate from analyzePhoto: this needs its own photo (the
+   * card can't be in the main listing photo), and the numbers here are
+   * computed geometry, not a model guess.
+   */
+  async measurePhoto(localUri: string): Promise<MeasurePhotoResult> {
+    const blob = await (await fetch(localUri)).blob();
+    const formData = new FormData();
+    formData.append("photo", blob, "photo.jpg");
+
+    const token = await this.config.getAuthToken?.();
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${this.config.baseUrl}/api/measure-photo`, { method: "POST", body: formData, headers });
+    if (!res.ok) throw new ApiError(res.status, await res.text());
+    return (await res.json()) as MeasurePhotoResult;
+  }
+}
+
+export interface AiPhotoDetails {
+  color: string;
+  material: string;
+  condition: string;
+  conditionNote: string;
+  description: string;
+  measurements: string;
+}
+
+export interface MeasurePhotoResult {
+  itemType: string;
+  measurementsText: string;
 }

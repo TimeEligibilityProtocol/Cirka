@@ -5,8 +5,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "./config/env.js";
 import { buildProviders } from "./providers/factory.js";
+import { analyzePhotoRouter } from "./routes/analyzePhoto.js";
 import { authRouter } from "./routes/auth.js";
 import { backgroundRemovalRouter } from "./routes/backgroundRemoval.js";
+import { measurePhotoRouter } from "./routes/measurePhoto.js";
 import { healthRouter } from "./routes/health.js";
 import { listingsRouter } from "./routes/listings.js";
 import { ordersRouter } from "./routes/orders.js";
@@ -27,6 +29,8 @@ app.use(listingsRouter());
 app.use(ordersRouter());
 app.use(uploadsRouter());
 app.use(backgroundRemovalRouter());
+app.use(analyzePhotoRouter(env.anthropicApiKey));
+app.use(measurePhotoRouter(env.anthropicApiKey));
 
 app.listen(env.port, "0.0.0.0", () => {
   console.log(`Cirka api listening on :${env.port} (${env.nodeEnv})`);

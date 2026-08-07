@@ -8,6 +8,7 @@ export interface Env {
   notificationProvider: "mock" | string;
   waytoYouApiBaseUrl: string | null;
   waytoYouApiKey: string | null;
+  anthropicApiKey: string | null;
 }
 
 /**
@@ -33,5 +34,6 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     notificationProvider: source.NOTIFICATION_PROVIDER ?? "mock",
     waytoYouApiBaseUrl: source.WAYTOYOU_API_BASE_URL || null,
     waytoYouApiKey: source.WAYTOYOU_API_KEY || null,
+    anthropicApiKey: source.ANTHROPIC_API_KEY || null,
   };
 }

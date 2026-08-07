@@ -6,6 +6,7 @@ import {
   Listing,
   ROOT_CATEGORIES,
 } from "@wearto-you/domain";
+import { AiPhotoDetails } from "@wearto-you/api-client";
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
 import { useEffect, useState } from "react";
 import { Image, ImageStyle, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -33,10 +34,23 @@ const STEPS = ["Photo", "Edit", "Details", "Review"];
 // the full flow runs as normal.
 const MAGIC_LISTING_DISABLED = process.env.EXPO_PUBLIC_DISABLE_MAGIC_LISTING === "true";
 
-const DETECTED = {
-  color: "Cream",
-  material: "Viscose blend",
-  condition: "Excellent",
+// Mirrors CONDITIONS in apps/api/src/routes/analyzePhoto.ts — the AI's
+// condition guess is always one of these, and the seller confirms/changes
+// it as a chip pick rather than free text, since it's a constrained tier,
+// not an open-ended description.
+const CONDITIONS = ["New with tags", "Excellent", "Very good", "Good", "Fair"] as const;
+
+// Fallback only for when AI analysis hasn't returned yet (or the operator
+// hasn't configured ANTHROPIC_API_KEY) — never published as-is; the
+// Details step always shows its own loading/unavailable state alongside
+// this so a seller never mistakes a placeholder for a real reading.
+const FALLBACK_DETAILS: AiPhotoDetails = {
+  color: "Not detected — describe manually",
+  material: "Not detected — describe manually",
+  condition: "Good",
+  conditionNote: "Seller to confirm condition.",
+  description: "",
+  measurements: "Not detected — seller to confirm.",
 };
 
 export function AddListingScreen() {
@@ -71,6 +85,98 @@ export function AddListingScreen() {
   // Bumped to re-trigger removal below after a failure — mainPhoto alone
   // doesn't change on retry, so it wouldn't re-run the effect on its own.
   const [retryToken, setRetryToken] = useState(0);
+
+  // Real AI reading of the item (color/material/condition/description/
+  // measurements) — runs in parallel with background removal on the same
+  // original photo, not the composited one, so it's usually ready well
+  // before the seller reaches the Details step.
+  const [aiDetails, setAiDetails] = useState<AiPhotoDetails | null>(null);
+  const [aiStatus, setAiStatus] = useState<"idle" | "analyzing" | "ready" | "error" | "unavailable">("idle");
+  // Independent from retryToken (background removal) — retrying the AI
+  // reading shouldn't re-run the already-succeeded, expensive cutout step.
+  const [aiRetryToken, setAiRetryToken] = useState(0);
+  // The seller's own edits — seeded from the AI reading once it lands, but
+  // free-text from then on. This is the AiAssistedField split (aiSuggestion
+  // vs. approved value) applied in the UI: aiDetails never changes once
+  // set, these do, and publish uses these, not the raw AI output.
+  const [descriptionText, setDescriptionText] = useState("");
+  const [measurementsText, setMeasurementsText] = useState("");
+  const [colorText, setColorText] = useState("");
+  const [materialText, setMaterialText] = useState("");
+  // Condition is a suggestion the seller actively confirms or overrides —
+  // a chip pick, not free text, since it's constrained to the same tiers
+  // used everywhere else in the app (see CONDITIONS in analyzePhoto.ts).
+  const [conditionValue, setConditionValue] = useState("");
+  const [conditionNoteText, setConditionNoteText] = useState("");
+
+  // Precise measurement from a dedicated flat-lay-with-card photo —
+  // separate from the AI reading above, and separate from the seller's
+  // main listing photos (a card can't be in the hero shot). Computed
+  // geometry from apps/api/src/routes/measurePhoto.ts, not a guess.
+  const [measuring, setMeasuring] = useState(false);
+  const [measureError, setMeasureError] = useState<string | null>(null);
+
+  const onMeasureWithPhoto = async () => {
+    if (measuring) return;
+    setMeasureError(null);
+    let picked: string[];
+    try {
+      picked = await chooseFromGallery(1);
+    } catch (err) {
+      console.error("measure photo picker failed:", err);
+      return;
+    }
+    if (picked.length === 0) return;
+    setMeasuring(true);
+    try {
+      const result = await apiClient.measurePhoto(picked[0]);
+      setMeasurementsText(result.measurementsText);
+    } catch (err) {
+      console.error("measurePhoto failed:", err);
+      const message = err instanceof Error ? err.message : "";
+      setMeasureError(
+        message.includes("no_card_detected")
+          ? "Couldn't find a card in this photo — lay the item flat with a bank card next to it, both fully visible."
+          : message.includes("ai_not_configured")
+            ? "AI measurement isn't configured on this deployment yet."
+            : "Couldn't measure this photo — try again with better lighting, item and card both flat and in frame."
+      );
+    } finally {
+      setMeasuring(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!mainPhoto || MAGIC_LISTING_DISABLED) return;
+    let cancelled = false;
+    setAiDetails(null);
+    setAiStatus("analyzing");
+    apiClient
+      .analyzePhoto(mainPhoto)
+      .then((details) => {
+        if (!cancelled) {
+          setAiDetails(details);
+          setDescriptionText(details.description);
+          setMeasurementsText(details.measurements);
+          setColorText(details.color);
+          setMaterialText(details.material);
+          setConditionValue(details.condition);
+          setConditionNoteText(details.conditionNote);
+          setAiStatus("ready");
+        }
+      })
+      .catch((err) => {
+        console.error("analyzePhoto failed:", err);
+        if (!cancelled) {
+          const unavailable = err instanceof Error && err.message.includes("ai_not_configured");
+          setAiStatus(unavailable ? "unavailable" : "error");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainPhoto, aiRetryToken]);
 
   useEffect(() => {
     // On the memory-constrained demo deployment, don't even call the
@@ -135,10 +241,6 @@ export function AddListingScreen() {
   const canContinue = (step > 0 || photos.length > 0) && !editStepBlocked && !photoStepBlocked;
   const next = () => {
     if (!canContinue) return;
-    if (step === 1 && !user) {
-      setAwaitingLogin(true);
-      return;
-    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
   const back = () => {
@@ -151,10 +253,16 @@ export function AddListingScreen() {
 
   const onPublish = async () => {
     // composedUri is required, not just preferred — a listing can never
-    // go live with its original, unswapped background. user is required
-    // too — the Edit-step gate above is the normal path for both; this
-    // is the backstop.
-    if (publishing || photos.length === 0 || !composedUri || !user) return;
+    // go live with its original, unswapped background.
+    if (publishing || photos.length === 0 || !composedUri) return;
+    // Login is the very last gate, right before the item actually goes
+    // live — a seller can go through Photo/Edit/Details/Review freely
+    // without an account, same as browsing. The prompt reappears here
+    // instead of blocking the button, so a logged-out tap explains itself.
+    if (!user) {
+      setAwaitingLogin(true);
+      return;
+    }
     setPublishing(true);
     setPublishError(null);
     try {
@@ -171,15 +279,15 @@ export function AddListingScreen() {
         categoryId: subcategoryId,
         status: "active",
         title: approvedField("New listing"),
-        description: approvedField("Newly listed via Magic Listing — AI-assisted draft, reviewed and approved by seller."),
+        description: approvedField(descriptionText.trim() || "Newly listed via Magic Listing — AI-assisted draft, reviewed and approved by seller."),
         brand: approvedField("Unbranded"),
-        color: approvedField(DETECTED.color),
+        color: approvedField(colorText.trim() || FALLBACK_DETAILS.color),
         size: approvedField("M"),
-        material: approvedField(DETECTED.material),
-        condition: approvedField(DETECTED.condition, "Like new."),
+        material: approvedField(materialText.trim() || FALLBACK_DETAILS.material),
+        condition: approvedField(conditionValue || FALLBACK_DETAILS.condition, conditionNoteText.trim() || FALLBACK_DETAILS.conditionNote),
         labelStatus: "available",
         images: uploadedUrls.map((url, i) => ({ url, alt: `Listing photo ${i + 1}` })),
-        measurements: "64 cm (W) × 112 cm (L)",
+        measurements: measurementsText.trim() || FALLBACK_DETAILS.measurements,
         price: aed(priceNumber),
         negotiable: false,
         minimumOfferMinor: null,
@@ -205,8 +313,9 @@ export function AddListingScreen() {
             heading="Log in to publish"
             sub="Your photo and background are saved — log in or create an account to finish publishing."
             onSuccess={() => {
+              // Login happens at the end now, from Review — stay right
+              // there so the seller just taps Publish again.
               setAwaitingLogin(false);
-              setStep(2);
             }}
           />
         </ScrollView>
@@ -240,6 +349,22 @@ export function AddListingScreen() {
             setRootCategoryId={setRootCategoryId}
             subcategoryId={subcategoryId}
             setSubcategoryId={setSubcategoryId}
+            aiDetails={aiDetails}
+            aiStatus={aiStatus}
+            onRetryAnalysis={() => setAiRetryToken((t) => t + 1)}
+            colorText={colorText}
+            setColorText={setColorText}
+            materialText={materialText}
+            setMaterialText={setMaterialText}
+            conditionValue={conditionValue}
+            setConditionValue={setConditionValue}
+            descriptionText={descriptionText}
+            setDescriptionText={setDescriptionText}
+            measurementsText={measurementsText}
+            setMeasurementsText={setMeasurementsText}
+            measuring={measuring}
+            measureError={measureError}
+            onMeasureWithPhoto={onMeasureWithPhoto}
           />
         ) : null}
         {step === 3 ? <ReviewStep price={price} setPrice={setPrice} /> : null}
@@ -250,7 +375,7 @@ export function AddListingScreen() {
         <PrimaryButton
           label={step === STEPS.length - 1 ? (publishing ? "Publishing…" : "Publish") : "Continue"}
           onPress={step === STEPS.length - 1 ? onPublish : next}
-          disabled={step === STEPS.length - 1 ? publishing || !composedUri || !user : !canContinue}
+          disabled={step === STEPS.length - 1 ? publishing || !composedUri : !canContinue}
           style={styles.continueBtn}
         />
       </View>
@@ -446,11 +571,43 @@ function DetailsStep({
   setRootCategoryId,
   subcategoryId,
   setSubcategoryId,
+  aiDetails,
+  aiStatus,
+  onRetryAnalysis,
+  colorText,
+  setColorText,
+  materialText,
+  setMaterialText,
+  conditionValue,
+  setConditionValue,
+  descriptionText,
+  setDescriptionText,
+  measurementsText,
+  setMeasurementsText,
+  measuring,
+  measureError,
+  onMeasureWithPhoto,
 }: {
   rootCategoryId: string;
   setRootCategoryId: (id: string) => void;
   subcategoryId: string;
   setSubcategoryId: (id: string) => void;
+  aiDetails: AiPhotoDetails | null;
+  aiStatus: "idle" | "analyzing" | "ready" | "error" | "unavailable";
+  onRetryAnalysis: () => void;
+  colorText: string;
+  setColorText: (v: string) => void;
+  materialText: string;
+  setMaterialText: (v: string) => void;
+  conditionValue: string;
+  setConditionValue: (v: string) => void;
+  descriptionText: string;
+  setDescriptionText: (v: string) => void;
+  measurementsText: string;
+  setMeasurementsText: (v: string) => void;
+  measuring: boolean;
+  measureError: string | null;
+  onMeasureWithPhoto: () => void;
 }) {
   const subcategories = getSubcategories(rootCategoryId);
   const currentSub = subcategories.find((s) => s.id === subcategoryId);
@@ -497,15 +654,86 @@ function DetailsStep({
         Selected: {ROOT_CATEGORIES.find((r) => r.id === rootCategoryId)?.labelEn} › {currentSub?.labelEn}
       </Text>
 
-      {Object.entries(DETECTED).map(([key, value]) => (
-        <View key={key} style={styles.detailRow}>
-          <Text style={styles.detailLabel}>{key[0].toUpperCase() + key.slice(1)}</Text>
-          <View style={styles.detailValueRow}>
-            <Text style={styles.detailValue}>{value}</Text>
-            <Text style={styles.chevron}>›</Text>
-          </View>
+      {aiStatus === "analyzing" ? (
+        <View style={styles.bgErrorBox}>
+          <Text style={styles.bgErrorText}>Reading the photo — color, material, condition, description and measurements…</Text>
         </View>
-      ))}
+      ) : null}
+      {aiStatus === "unavailable" ? (
+        <View style={styles.bgErrorBox}>
+          <Text style={styles.bgErrorText}>
+            AI photo analysis isn't configured on this deployment yet — fill in the details below manually.
+          </Text>
+        </View>
+      ) : null}
+      {aiStatus === "error" ? (
+        <View style={styles.bgErrorBox}>
+          <Text style={styles.bgErrorText}>Couldn't read this photo automatically — you can fill in the details manually, or try again.</Text>
+          <Pressable onPress={onRetryAnalysis} style={styles.retryBtn}>
+            <Text style={styles.retryBtnText}>Try again</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <Text style={styles.fieldLabel}>Color</Text>
+      <TextInput
+        value={colorText}
+        onChangeText={setColorText}
+        placeholder={FALLBACK_DETAILS.color}
+        placeholderTextColor={`${colors.text}55`}
+        style={styles.editableField}
+      />
+
+      <Text style={[styles.fieldLabel, { marginTop: spacing.sm }]}>Material</Text>
+      <TextInput
+        value={materialText}
+        onChangeText={setMaterialText}
+        placeholder={FALLBACK_DETAILS.material}
+        placeholderTextColor={`${colors.text}55`}
+        style={styles.editableField}
+      />
+
+      <Text style={[styles.fieldLabel, { marginTop: spacing.sm }]}>Condition</Text>
+      <Text style={styles.stepSub}>AI suggests a starting point — you always confirm or change it.</Text>
+      <View style={styles.chipRow}>
+        {CONDITIONS.map((c) => (
+          <Pressable key={c} onPress={() => setConditionValue(c)} style={[styles.chip, c === conditionValue ? styles.chipActive : undefined]}>
+            <Text style={[styles.chipText, c === conditionValue ? styles.chipTextActive : undefined]}>{c}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={[styles.detailsHeader, { marginTop: spacing.md, marginBottom: spacing.xs }]}>
+        <Text style={styles.fieldLabel}>Measurements</Text>
+        <Pressable onPress={onMeasureWithPhoto} disabled={measuring} hitSlop={6}>
+          <Text style={[styles.editAll, measuring ? { opacity: 0.5 } : undefined]}>
+            {measuring ? "Measuring…" : "📏 Measure with a photo"}
+          </Text>
+        </Pressable>
+      </View>
+      <Text style={[styles.stepSub, { marginTop: 0, marginBottom: spacing.xs }]}>
+        Lay the item flat with a bank card next to it (not on the item) — a separate photo just for this, never the
+        listing photo.
+      </Text>
+      {measureError ? <Text style={[styles.bgErrorText, { marginBottom: spacing.xs }]}>{measureError}</Text> : null}
+      <TextInput
+        value={measurementsText}
+        onChangeText={setMeasurementsText}
+        placeholder={FALLBACK_DETAILS.measurements}
+        placeholderTextColor={`${colors.text}55`}
+        style={styles.editableField}
+        multiline
+      />
+
+      <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>Description</Text>
+      <TextInput
+        value={descriptionText}
+        onChangeText={setDescriptionText}
+        placeholder="Describe the item — condition, fit, anything a buyer should know."
+        placeholderTextColor={`${colors.text}55`}
+        style={[styles.editableField, styles.editableFieldMultiline]}
+        multiline
+      />
+
       <Text style={styles.stepSub}>
         Each field carries the AI suggestion and your approved value separately — the public listing only ever
         shows what you approved.
@@ -727,6 +955,17 @@ const styles = StyleSheet.create({
   detailValueRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   detailValue: { fontSize: 14, color: colors.text, opacity: 0.75 },
   chevron: { fontSize: 18, color: colors.text, opacity: 0.4 },
+  editableField: {
+    fontSize: 14,
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.card,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  editableFieldMultiline: { minHeight: 80, textAlignVertical: "top" },
   priceRow: {
     flexDirection: "row",
     alignItems: "center",
