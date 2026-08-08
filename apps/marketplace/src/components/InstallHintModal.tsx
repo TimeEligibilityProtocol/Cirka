@@ -8,7 +8,8 @@ const COPY: Record<Exclude<InstallMethod, null>, { title: string; steps: string[
     title: "Install on iPhone",
     steps: [
       'Tap the "•••" button next to the address bar (bottom of the screen, where you are right now).',
-      'Tap "Add to Home Screen", then tap "Add" in the top right.',
+      'In the menu that opens, tap "Share" at the top.',
+      'Scroll down in the Share sheet and tap "Add to Home Screen", then tap "Add" in the top right.',
     ],
     done: "That's it — a Cirka icon appears on your Home Screen, and opens full-screen like any other app.",
   },
