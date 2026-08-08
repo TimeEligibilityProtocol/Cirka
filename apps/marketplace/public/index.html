@@ -7,6 +7,15 @@
     <title>Cirka — Pre-loved fashion in the UAE</title>
     <meta name="description" content="Buy and sell pre-loved, vintage and premium fashion in the UAE. Great pieces deserve another life." />
 
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#899363" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Cirka" />
+
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Cirka" />
     <meta property="og:title" content="Cirka — Pre-loved fashion in the UAE" />
@@ -44,5 +53,16 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
+    <script>
+      // Registered only so browsers consider the site installable as a
+      // PWA — see public/service-worker.js for why it does nothing else.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/service-worker.js").catch((err) => {
+            console.error("Service worker registration failed:", err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

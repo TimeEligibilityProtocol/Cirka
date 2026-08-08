@@ -313,3 +313,13 @@ export function ChevronRightIcon({ size, color = "currentColor", strokeWidth = D
     </Svg>
   );
 }
+
+export function DownloadIcon({ size, color = "currentColor", strokeWidth = DEFAULT_STROKE }: IconProps) {
+  const s = base(size);
+  return (
+    <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 4v11.5M7.5 11 12 15.5 16.5 11" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M4.5 17v1.5A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5V17" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}

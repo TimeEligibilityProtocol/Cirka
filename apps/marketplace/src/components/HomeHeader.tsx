@@ -1,8 +1,11 @@
 import { colors, radii, spacing, typography } from "@wearto-you/ui";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useInstallPrompt } from "../lib/useInstallPrompt";
 import { useStack } from "../nav/stack";
+import { InstallHintModal } from "./InstallHintModal";
 import { Wordmark } from "./Wordmark";
-import { ChatIcon, HeartIcon, ProfileIcon, SearchIcon } from "./icons/icons";
+import { ChatIcon, DownloadIcon, HeartIcon, ProfileIcon, SearchIcon } from "./icons/icons";
 
 export function HomeHeader({
   desktop,
@@ -14,6 +17,13 @@ export function HomeHeader({
   onSearchChange: (value: string) => void;
 }) {
   const { push, reset } = useStack();
+  const { installMethod, promptInstall } = useInstallPrompt();
+  const [showSafariHint, setShowSafariHint] = useState(false);
+
+  const onInstallPress = () => {
+    if (installMethod === "prompt") promptInstall();
+    else if (installMethod === "safari-ios" || installMethod === "safari-mac") setShowSafariHint(true);
+  };
 
   const iconRow = (
     <View style={styles.iconRow}>
@@ -46,6 +56,14 @@ export function HomeHeader({
             style={[styles.searchInput, { outlineStyle: "none" }] as never}
           />
         </View>
+        {installMethod ? (
+          <Pressable onPress={onInstallPress} hitSlop={8} accessibilityLabel="Install Cirka app" style={styles.installIconBtn}>
+            <DownloadIcon size={18} color={colors.text} />
+          </Pressable>
+        ) : null}
+        {showSafariHint && installMethod !== "prompt" && installMethod !== null ? (
+          <InstallHintModal method={installMethod} onClose={() => setShowSafariHint(false)} />
+        ) : null}
       </View>
     );
   }
@@ -74,10 +92,19 @@ export function HomeHeader({
       <View style={styles.zoneRight}>
         {search}
         {iconRow}
+        {installMethod ? (
+          <Pressable style={styles.installButton} onPress={onInstallPress}>
+            <DownloadIcon size={15} color={colors.text} />
+            <Text style={styles.installButtonLabel}>Install</Text>
+          </Pressable>
+        ) : null}
         <Pressable style={styles.sellButton} onPress={() => push("AddListing")}>
           <Text style={styles.sellButtonLabel}>Sell</Text>
         </Pressable>
       </View>
+      {showSafariHint && installMethod !== "prompt" && installMethod !== null ? (
+        <InstallHintModal method={installMethod} onClose={() => setShowSafariHint(false)} />
+      ) : null}
     </View>
   );
 }
@@ -96,6 +123,7 @@ const styles = StyleSheet.create({
   },
   mobileSearchWrap: {
     flex: 1,
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -103,7 +131,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radii.pill,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
   },
   desktopRow: {
@@ -158,5 +186,29 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 14,
     fontWeight: typography.weights.button as "600",
+  },
+  installButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.pill,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  installButtonLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: typography.weights.bodyMedium as "500",
+  },
+  installIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
