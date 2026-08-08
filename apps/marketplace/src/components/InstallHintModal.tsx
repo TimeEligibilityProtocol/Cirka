@@ -7,8 +7,8 @@ const COPY: Record<Exclude<InstallMethod, null>, { title: string; steps: string[
   "safari-ios": {
     title: "Install on iPhone",
     steps: [
-      'At the bottom of the screen, tap the Share icon (a square with an arrow) — or "•••" if that\'s what you see instead.',
-      'In the menu that opens, tap "Add to Home Screen", then tap "Add".',
+      'Tap the "•••" button next to the address bar (bottom of the screen, where you are right now).',
+      'Tap "Add to Home Screen", then tap "Add" in the top right.',
     ],
     done: "That's it — a Cirka icon appears on your Home Screen, and opens full-screen like any other app.",
   },
