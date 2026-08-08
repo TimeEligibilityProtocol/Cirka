@@ -17,13 +17,8 @@ export function HomeHeader({
   onSearchChange: (value: string) => void;
 }) {
   const { push, reset } = useStack();
-  const { installMethod, promptInstall } = useInstallPrompt();
+  const { installMethod } = useInstallPrompt();
   const [showSafariHint, setShowSafariHint] = useState(false);
-
-  const onInstallPress = () => {
-    if (installMethod === "prompt") promptInstall();
-    else if (installMethod === "safari-ios" || installMethod === "safari-mac") setShowSafariHint(true);
-  };
 
   const iconRow = (
     <View style={styles.iconRow}>
@@ -57,13 +52,16 @@ export function HomeHeader({
           />
         </View>
         {installMethod ? (
-          <Pressable onPress={onInstallPress} hitSlop={8} accessibilityLabel="Install Cirka app" style={styles.installIconBtn}>
+          <Pressable
+            onPress={() => setShowSafariHint(true)}
+            hitSlop={8}
+            accessibilityLabel="Install Cirka app"
+            style={styles.installIconBtn}
+          >
             <DownloadIcon size={18} color={colors.text} />
           </Pressable>
         ) : null}
-        {showSafariHint && installMethod !== "prompt" && installMethod !== null ? (
-          <InstallHintModal method={installMethod} onClose={() => setShowSafariHint(false)} />
-        ) : null}
+        {showSafariHint && installMethod ? <InstallHintModal method={installMethod} onClose={() => setShowSafariHint(false)} /> : null}
       </View>
     );
   }
@@ -93,7 +91,7 @@ export function HomeHeader({
         {search}
         {iconRow}
         {installMethod ? (
-          <Pressable style={styles.installButton} onPress={onInstallPress}>
+          <Pressable style={styles.installButton} onPress={() => setShowSafariHint(true)}>
             <DownloadIcon size={15} color={colors.text} />
             <Text style={styles.installButtonLabel}>Install</Text>
           </Pressable>
@@ -102,9 +100,7 @@ export function HomeHeader({
           <Text style={styles.sellButtonLabel}>Sell</Text>
         </Pressable>
       </View>
-      {showSafariHint && installMethod !== "prompt" && installMethod !== null ? (
-        <InstallHintModal method={installMethod} onClose={() => setShowSafariHint(false)} />
-      ) : null}
+      {showSafariHint && installMethod ? <InstallHintModal method={installMethod} onClose={() => setShowSafariHint(false)} /> : null}
     </View>
   );
 }

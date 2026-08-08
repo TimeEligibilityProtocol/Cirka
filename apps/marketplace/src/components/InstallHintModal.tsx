@@ -3,14 +3,19 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { InstallMethod } from "../lib/useInstallPrompt";
 import { CloseIcon } from "./icons/icons";
 
-const COPY: Record<Exclude<InstallMethod, "prompt" | null>, { title: string; steps: string[] }> = {
+const COPY: Record<Exclude<InstallMethod, null>, { title: string; steps: string[]; done: string }> = {
   "safari-ios": {
     title: "Install on iPhone",
-    steps: ["Tap the Share icon in Safari's toolbar.", 'Scroll down and tap "Add to Home Screen".', 'Tap "Add" to confirm.'],
+    steps: [
+      'At the bottom of the screen, tap the Share icon (a square with an arrow) — or "•••" if that\'s what you see instead.',
+      'In the menu that opens, tap "Add to Home Screen", then tap "Add".',
+    ],
+    done: "That's it — a Cirka icon appears on your Home Screen, and opens full-screen like any other app.",
   },
   "safari-mac": {
     title: "Install on Mac",
-    steps: ['In Safari\'s menu bar, choose File → "Add to Dock".', "Name it and click Add.", "It opens from your Dock like any other app."],
+    steps: ['At the very top of your screen, click "File", then click "Add to Dock".', 'Click "Add" to confirm.'],
+    done: "That's it — a Cirka icon appears in your Dock, and opens like any other app.",
   },
 };
 
@@ -33,6 +38,7 @@ export function InstallHintModal({ method, onClose }: { method: "safari-ios" | "
               <Text style={styles.stepText}>{step}</Text>
             </View>
           ))}
+          <Text style={styles.doneText}>{copy.done}</Text>
         </Pressable>
       </Pressable>
     </Modal>
@@ -69,4 +75,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   stepText: { flex: 1, fontSize: 14, color: colors.text, lineHeight: 20 },
+  doneText: { fontSize: 13, color: colors.text, opacity: 0.7, marginTop: spacing.sm, lineHeight: 19 },
 });
